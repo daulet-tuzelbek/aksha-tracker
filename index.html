@@ -225,6 +225,20 @@ pre.peek{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var
 .lstrip{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:center;width:100%;margin-top:14px;padding:12px 16px;border-radius:22px;border:1px solid var(--line);background:var(--surface);text-align:left}
 .lrow{display:flex;flex-direction:column;gap:8px;padding:14px 16px}
 .lrow + .lrow{border-top:1px solid var(--line)}
+.pcard.real{height:auto;aspect-ratio:1.586/1;padding:16px 18px;gap:4px}
+.pcard.real::before{inset:-60% auto auto -30%;width:140%;height:120%;border-radius:0;background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.28) 48%,transparent 60%);transform:rotate(0deg)}
+.pcard.real::after{display:none}
+.pcard.real .pgear,.pcard.real .pset{background:rgba(255,255,255,.22)}
+.pcard.real .pbal{font-size:30px}
+.pcard.real .pnum{font-size:15px;letter-spacing:.14em;opacity:.9}
+.chip2{width:42px;height:32px;border-radius:7px;background:linear-gradient(135deg,#F3E2B0,#D6B66E 45%,#BF9A4F);position:relative;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18);overflow:hidden}
+.chip2 i{position:absolute;background:rgba(80,55,15,.35)}
+.chip2 i:nth-child(1){left:0;right:0;top:50%;height:1px}
+.chip2 i:nth-child(2){top:0;bottom:0;left:33%;width:1px}
+.chip2 i:nth-child(3){top:0;bottom:0;left:66%;width:1px}
+.swatches{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.swatches button{aspect-ratio:1.586/1;border-radius:8px;border:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08);position:relative}
+.swatches button[aria-pressed=true]{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
 details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px}
 @media (prefers-reduced-motion: no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px)}to{transform:none}}}
 @media (max-width:380px){.kpis{grid-template-columns:1fr 1fr}.hero .big{font-size:30px}}
@@ -367,6 +381,7 @@ function applyLangArrays() {
   document.documentElement.lang = LANG === 'kk' ? 'kk' : 'ru';
 }
 const KK = {
+  'Цвет карты': 'Карта түсі', 'Золото': 'Алтын', 'Серебро': 'Күміс', 'Зелёный': 'Жасыл', 'Красный': 'Қызыл', 'Голубой': 'Көгілдір', 'Чёрный': 'Қара', 'Синий': 'Көк', 'Оранжевый': 'Қызғылт сары', 'Фиолетовый': 'Күлгін', 'Розовый': 'Қызғылт',
   'Apple Pay автоматически': 'Apple Pay автоматты түрде', 'Apple Pay автоматически: инструкция': 'Apple Pay автоматты түрде: нұсқаулық', 'Ссылка на ваше приложение': 'Қолданбаңыздың сілтемесі', 'Скопировать ссылку': 'Сілтемені көшіру',
   'Способ 1. Сразу после оплаты': '1-тәсіл. Төлемнен кейін бірден', 'Способ 2. Незаметно, в файл': '2-тәсіл. Байқатпай, файлға',
   'Работает через приложение «Команды» на iPhone и только для оплат Apple Pay. Переводы и оплаты внутри банковских приложений добавляйте выпиской.': 'iPhone-дағы «Командалар» арқылы және тек Apple Pay төлемдері үшін жұмыс істейді. Аударымдар мен банк қолданбасындағы төлемдерді үзінді көшірмемен қосыңыз.',
@@ -662,6 +677,22 @@ const CAT_META = {
 const catColor = c => (CAT_META[c] || CAT_META['Другое'])[0];
 const svgIcon = (k, size = 20, color = 'currentColor') => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${IC[k] || IC.dots}"/></svg>`;
 const catIcon = (c, size = 40) => { const [col, ic] = CAT_META[c] || CAT_META['Другое']; return `<span class="cico" style="width:${size}px;height:${size}px;background:${col}1f;color:${col}">${svgIcon(ic, Math.round(size * .5), col)}</span>`; };
+const FINISHES = {
+  gold: {n: 'Золото', bg: 'linear-gradient(135deg,#D9BE86 0%,#C2A066 38%,#A9864C 70%,#8E6F3C 100%)', ink: '#3A2A10'},
+  silver: {n: 'Серебро', bg: 'linear-gradient(135deg,#F1F2F4 0%,#D5D8DD 40%,#B9BDC4 75%,#A4A9B1 100%)', ink: '#2A2E35'},
+  green: {n: 'Зелёный', bg: 'linear-gradient(135deg,#3E8A5E 0%,#2F7650 45%,#215C3D 100%)', ink: '#F3F7F4'},
+  red: {n: 'Красный', bg: 'linear-gradient(135deg,#C8323A 0%,#A6222B 50%,#7E1820 100%)', ink: '#FFFFFF'},
+  sky: {n: 'Голубой', bg: 'linear-gradient(135deg,#EAF3FB 0%,#BFD9F0 45%,#93BFE6 100%)', ink: '#18304D'},
+  black: {n: 'Чёрный', bg: 'linear-gradient(135deg,#3A3A3C 0%,#1F1F21 55%,#0E0E10 100%)', ink: '#FFFFFF'},
+  navy: {n: 'Синий', bg: 'linear-gradient(135deg,#2F5FB3 0%,#204A93 50%,#14326A 100%)', ink: '#FFFFFF'},
+  orange: {n: 'Оранжевый', bg: 'linear-gradient(135deg,#F2994A 0%,#E07A2E 50%,#B85C1A 100%)', ink: '#FFFFFF'},
+  purple: {n: 'Фиолетовый', bg: 'linear-gradient(135deg,#8E6AD8 0%,#6E4BC0 50%,#4E3394 100%)', ink: '#FFFFFF'},
+  rose: {n: 'Розовый', bg: 'linear-gradient(135deg,#F4B6C8 0%,#E58BA6 50%,#C9628A 100%)', ink: '#3D1222'}
+};
+const BANK_FINISH = {kaspi: 'gold', halyk: 'green', bcc: 'silver', freedom: 'red', homecredit: 'sky', jusan: 'orange', forte: 'purple', bereke: 'green', rbk: 'navy', altyn: 'gold', eurasian: 'navy', otbasy: 'green', cash: 'black', other: 'black'};
+const finishOf = c => FINISHES[c.finish] || FINISHES[BANK_FINISH[c.bank]] || FINISHES.black;
+const CHIP = `<span class="chip2" aria-hidden="true"><i></i><i></i><i></i></span>`;
+const NFC = ink => `<svg class="nfc" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="${ink}" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M7 8.5a5 5 0 0 1 0 7M10.5 6a9 9 0 0 1 0 12M14 3.5a13 13 0 0 1 0 17"/></svg>`;
 const BANKS = [
   {k: 'kaspi', n: 'Kaspi', mono: 'Ka', c1: '#3A3F8F', c2: '#6A5ACD', re: /kaspi|каспи/i, def: 'Kaspi Gold'},
   {k: 'halyk', n: 'Halyk', mono: 'Hb', c1: '#155E63', c2: '#2A9D8F', re: /halyk|халык|homebank/i, def: 'Halyk'},
@@ -1293,10 +1324,12 @@ function slideHTML(x) {
       <div class="pfoot"><span>${cards.length} ${plural(cards.length, 'карта', 'карты', 'карт')}</span><span>Ақша</span></div></section></div>`;
   }
   const c = x.c, b = bankByKey(c.bank), bal = cardBalance(c);
-  return `<div class="slide"><section class="pcard" style="background:linear-gradient(150deg,${b.c2},${b.c1})">
-    <div class="ptop"><div class="pname">${bankBadge(b, 30)}<span>${esc(c.name)}</span></div><button class="pgear" data-act="editCard" aria-label="Настройки карты">${svgIcon('gear', 18, '#fff')}</button></div>
-    <div><div class="plbl">Текущий баланс</div>${bal === null ? `<button class="pset" data-act="editCard">Указать баланс</button>` : `<div class="pbal num">${hidden ? '••••••' : money(Math.round(bal))}${eye}</div>`}</div>
-    <div class="pfoot"><span>${esc(b.n)}</span><span class="pnum">${c.last4 ? '•••• ' + esc(c.last4) : ''}</span></div></section></div>`;
+  const f = finishOf(c); const eyeC = `<button class="peye" data-act="toggleBal" aria-label="${hidden ? 'Показать баланс' : 'Скрыть баланс'}">${svgIcon(hidden ? 'eyeoff' : 'eye', 18, f.ink)}</button>`;
+  return `<div class="slide"><section class="pcard real" style="background:${f.bg};color:${f.ink}">
+    <div class="ptop"><div class="pname"><span>${esc(c.name)}</span></div><button class="pgear" data-act="editCard" data-cname="${esc(c.name)}" aria-label="Настройки карты" style="color:${f.ink}">${svgIcon('gear', 18, f.ink)}</button></div>
+    <div class="row" style="gap:10px">${CHIP}${NFC(f.ink)}</div>
+    <div><div class="plbl">Текущий баланс</div>${bal === null ? `<button class="pset" data-act="editCard" data-cname="${esc(c.name)}" style="color:${f.ink}">Указать баланс</button>` : `<div class="pbal num">${hidden ? '••••••' : money(Math.round(bal))}${eyeC}</div>`}</div>
+    <div class="pfoot"><span class="pnum">${c.last4 ? '••••  ' + esc(c.last4) : '••••  ••••'}</span><span style="font-weight:600">${esc(b.n)}</span></div></section></div>`;
 }
 function stackHTML(rows) {
   const sl = slidesList(); const idx = currentSlideIdx(sl);
@@ -1435,12 +1468,14 @@ function sheetEditCard() {
   openSheet(`<form id="fEc" class="stack"><div class="spread"><div class="row" style="gap:10px">${bankBadge(b, 32)}<h2>${esc(c.name)}</h2></div><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
     <div class="field"><label for="ecBal">Текущий баланс, ₸</label><input id="ecBal" type="text" inputmode="decimal" placeholder="Например, 177 162" value="${bal === null ? '' : Math.round(bal)}"></div>
     <p class="small muted">Дальше баланс считается сам по операциям этой карты. Если в пуше есть «Доступно …», он обновится из пуша.</p>
+    <div class="field"><label>Цвет карты</label><div class="swatches">${Object.entries(FINISHES).map(([k, f]) => `<button type="button" data-fin="${k}" aria-pressed="${finishOf(c) === f}" aria-label="${f.n}" title="${f.n}" style="background:${f.bg}"></button>`).join('')}</div></div>
     <div class="field"><label for="ecName">Название</label><input id="ecName" type="text" value="${esc(c.name)}" required></div>
     <div class="field"><label for="ecLast">Последние 4 цифры</label><input id="ecLast" type="text" inputmode="numeric" maxlength="4" value="${esc(c.last4 || '')}"></div>
     <button class="btn primary block">Сохранить</button>
     <button type="button" class="btn block" data-act="cards">Все карты</button></form>`, sh => {
+    let fin = c.finish || ''; sh.querySelectorAll('[data-fin]').forEach(b => b.onclick = () => { fin = b.dataset.fin; sh.querySelectorAll('[data-fin]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
     $('#fEc', sh).onsubmit = e => {
-      e.preventDefault(); const nn = $('#ecName', sh).value.trim(); if (!nn) return;
+      e.preventDefault(); const nn = $('#ecName', sh).value.trim(); if (!nn) return; if (fin) c.finish = fin;
       if (nn !== c.name) { if (cardsList().some(x => x.name === nn)) return toast('Такое название уже есть'); const yms = new Set(); S.txs.forEach(t => { if (t.card === c.name) { t.card = nn; yms.add(ymOf(t.d)); } }); markDirty(...yms); c.name = nn; S.filterCard = nn; }
       c.last4 = $('#ecLast', sh).value.replace(/\D/g, '').slice(0, 4);
       const v = $('#ecBal', sh).value.trim();
@@ -2026,6 +2061,7 @@ document.addEventListener('click', e => {
   const a = el.dataset.act;
   if (el.dataset.tab) { if (el.dataset.tab === 'plus') return sheetAddMenu(); S.tab = el.dataset.tab; render(); scrollTo(0, 0); if (S.tab === 'ai' && S.ai.sample === undefined) initAI(); return; }
   if (el.dataset.tx) return sheetTx(el.dataset.tx);
+  if (el.dataset.cname) { S.scope = 'me'; S.filterAuthor = ''; S.filterCard = el.dataset.cname; }
   if (el.dataset.lang) return setLang(el.dataset.lang);
   if (el.dataset.close) closeSheet();
   if (el.dataset.period) { const m = el.dataset.period; if (m === 'range') return sheetRange(); S.period = {mode: m}; if (m === 'month' && S.period.mode === 'month') {} return render(); }
