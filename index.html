@@ -367,6 +367,9 @@ function applyLangArrays() {
   document.documentElement.lang = LANG === 'kk' ? 'kk' : 'ru';
 }
 const KK = {
+  'Apple Pay автоматически': 'Apple Pay автоматты түрде', 'Apple Pay автоматически: инструкция': 'Apple Pay автоматты түрде: нұсқаулық', 'Ссылка на ваше приложение': 'Қолданбаңыздың сілтемесі', 'Скопировать ссылку': 'Сілтемені көшіру',
+  'Способ 1. Сразу после оплаты': '1-тәсіл. Төлемнен кейін бірден', 'Способ 2. Незаметно, в файл': '2-тәсіл. Байқатпай, файлға',
+  'Работает через приложение «Команды» на iPhone и только для оплат Apple Pay. Переводы и оплаты внутри банковских приложений добавляйте выпиской.': 'iPhone-дағы «Командалар» арқылы және тек Apple Pay төлемдері үшін жұмыс істейді. Аударымдар мен банк қолданбасындағы төлемдерді үзінді көшірмемен қосыңыз.',
   'Добавить карту': 'Карта қосу', 'Кредиты': 'Несиелер', 'Траты по дням': 'Күндік шығындар', 'Регулярные платежи': 'Тұрақты төлемдер', 'Оплачено в этом месяце': 'Осы айда төленді', 'Выбор карты': 'Карта таңдау', 'Карты': 'Карталар', 'Траты по дням по категориям': 'Санаттар бойынша күндік шығын', 'Расходы семьи': 'Отбасы шығыстары',
   'Семья': 'Отбасы', 'Семейный бюджет': 'Отбасылық бюджет', 'Общий бюджет': 'Ортақ бюджет', 'Автор': 'Автор', 'Все участники': 'Барлық қатысушылар', 'Участники': 'Қатысушылар', 'Пригласить': 'Шақыру', 'Скопировать код': 'Кодты көшіру', 'Мои общие карты': 'Менің ортақ карталарым',
   'Операции с этих карт видят все участники семьи.': 'Бұл карталардың операцияларын отбасының барлық мүшесі көреді.', 'Выйти из семьи': 'Отбасыдан шығу', 'Создать': 'Құру', 'Присоединиться': 'Қосылу', 'Создать семью': 'Отбасы құру',
@@ -447,6 +450,7 @@ const KK = {
   'Темп трат выше прошлого месяца': 'Шығын қарқыны өткен айдан жоғары', 'Заблокировано после бездействия': 'Әрекетсіздіктен кейін бұғатталды'
 };
 const KK_RX = [
+  [/^Из Apple Pay добавлено: (\d+)$/, (m, a) => `Apple Pay-ден қосылды: ${a}`],
   [/^Около (\d+) числа$/, (m, a) => `Шамамен ${a}-күні`],
   [/^(.+) в месяц$/, (m, a) => `айына ${a}`],
   [/^Текущий баланс · по (\d+) из (\d+) карт$/, (m, a, b) => `Ағымдағы баланс · ${b} картаның ${a}-і бойынша`],
@@ -597,7 +601,7 @@ const NOT_SPEND = new Set(['Доход', 'Между своими счетами
 const RULES = [
   [/magnum|small|galmart|anvar|арбуз|arbuz|metro|ramstore|супермаркет|продукт|интерфуд|toimart/i, 'Продукты'],
   [/wolt|glovo|yandex\s?eda|яндекс\s?еда|chocofood|доставк/i, 'Доставка еды'],
-  [/yandex\s?go|яндекс\s?go|yandex\.?taxi|такси|uber|indrive|индрайв|onay|онай|bolt|азс|helios|sinooil|gazprom|qazaq oil|parking|парков/i, 'Такси и транспорт'],
+  [/yandex[\s.]?go|яндекс[\s.]?go|yandex\.?taxi|такси|uber|indrive|индрайв|onay|онай|bolt|азс|helios|sinooil|gazprom|qazaq oil|parking|парков/i, 'Такси и транспорт'],
   [/coffee|кофе|cafe|кафе|starbucks|kfc|burger|bahandi|rest|ресторан|pizza|пицц|sushi|суши|bar\b|бар\b/i, 'Кафе и рестораны'],
   [/beeline|kcell|activ|tele2|altel|kazakhtelecom|казахтелеком|apple\.com|icloud|netflix|spotify|youtube|yandex\s?plus|яндекс\s?плюс|google\s|chatgpt|openai|anthropic|claude/i, 'Связь и подписки'],
   [/алсеко|alseco|ерц|erc|ivc|ивц|коммунал|осв|ксж|кск/i, 'Коммуналка'],
@@ -693,14 +697,19 @@ const initials = s => (s || '?').replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\
 
 // ───────────────────────── parsers ─────────────────────────
 const AMT_RE = /([+\-−–]?\s?\d{1,3}(?:[\s  ]\d{3})*(?:[.,]\d{1,2})?|[+\-−–]?\s?\d+(?:[.,]\d{1,2})?)\s?(₸|тг\.?|kzt|тенге)/i;
-const toNum = s => Number(String(s).replace(/[\s  ]/g, '').replace(/[−–]/g, '-').replace(',', '.'));
+const toNum = s => { let x = String(s).replace(/[\s\u00a0\u202f'’]/g, '').replace(/[−–]/g, '-');
+  if (x.includes(',') && x.includes('.')) x = x.lastIndexOf(',') > x.lastIndexOf('.') ? x.replace(/\./g, '').replace(',', '.') : x.replace(/,/g, '');
+  else if (/^-?\d{1,3}(,\d{3})+$/.test(x)) x = x.replace(/,/g, '');
+  else x = x.replace(',', '.');
+  return Number(x); };
 const IN_WORDS = /пополнени|поступлени|зачислени|перевод от|получен|входящ|возврат|refund|кэшбэк|cashback|зарплат/i;
 const OUT_WORDS = /покупк|оплат|списани|снятие|перевод|платеж|платёж|purchase|payment/i;
 
 // Parse a bank push / SMS / Shortcuts line into a transaction draft.
 function parsePush(text, rules) {
   const t = text.replace(/\s+/g, ' ').trim();
-  const m = t.match(AMT_RE);
+  let m = t.match(AMT_RE);
+  if (!m) { const m2 = t.match(/(₸|kzt)\s?([+\-−–]?\d[\d\s\u00a0\u202f.,]*\d|\d)/i); if (m2) m = Object.assign([m2[0], m2[2], m2[1]], {index: m2.index}); }
   if (!m) return null;
   let n = toNum(m[1]);
   const signed = /^[+\-−–]/.test(m[1].trim());
@@ -715,6 +724,7 @@ function parsePush(text, rules) {
   let merchant = (after || before || type || 'Операция').replace(/\b([01]\d|2[0-3]):[0-5]\d\b/g, '').replace(/\d{2}\.\d{2}\.\d{2,4}/g, '').replace(/\s+/g, ' ').trim().replace(/[,;.]+$/, '').slice(0, 60).trim();
   const cardM = t.match(/\*{1,4}\s?(\d{4})/) || t.match(/(kaspi gold|kaspi red|halyk|freedom|jusan|bcc|forte|bereke|home credit|altyn|rbk)/i);
   const card = cardM ? (cardM[1].match(/^\d{4}$/) ? '•' + cardM[1] : cap(cardM[1])) : '';
+  if (cardM) merchant = merchant.replace(new RegExp(cardM[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').replace(/\s+/g, ' ').trim() || merchant;
   const dateM = t.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
   let d = todayISO();
   if (dateM) { const y = dateM[3].length === 2 ? '20' + dateM[3] : dateM[3]; d = `${y}-${dateM[2]}-${dateM[1]}`; }
@@ -747,6 +757,7 @@ function parseStatementLines(lines, rules, cardName) {
   return {rows: out, skipped};
 }
 function parseCSV(text, rules, cardName) {
+  if (/^AKSHA;/im.test(text)) return parseAkshaLines(text, rules);
   const lines = text.split(/\r?\n/).filter(Boolean); if (!lines.length) return {rows: [], skipped: 0};
   const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
   const split = l => { const r = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === sep && !q) { r.push(cur); cur = ''; } else cur += ch; } r.push(cur); return r.map(s => s.trim()); };
@@ -865,6 +876,7 @@ async function signup(login, pw) {
   await Store.setAcct(id, acct);
   Object.assign(S, {acctId: id, login: login.trim(), key, acct, txs: [], recKey: rec});
   await Store.log(id, 'signup');
+  await afterUnlock();
 }
 async function login(loginName, pw) {
   const id = await acctIdFor(loginName);
@@ -873,7 +885,7 @@ async function login(loginName, pw) {
   let raw;
   try { raw = await unwrapVault(acct.wp, pw); } catch { await Store.log(id, 'login_failed'); throw new Error('Неверный логин или пароль.'); }
   Object.assign(S, {acctId: id, login: loginName.trim(), key: await importVault(raw), acct});
-  await loadVault(); await Store.log(id, 'login'); startFam();
+  await loadVault(); await Store.log(id, 'login'); startFam(); await afterUnlock();
 }
 async function recover(loginName, rec, newPw) {
   const id = await acctIdFor(loginName); const acct = await Store.getAcct(id);
@@ -881,7 +893,7 @@ async function recover(loginName, rec, newPw) {
   let raw; try { raw = await unwrapVault(acct.wr, normRec(rec).replace(/-/g, '')); } catch { await Store.log(id, 'recovery_failed'); throw new Error('Неверный логин или ключ восстановления.'); }
   acct.wp = await wrapVault(raw, newPw); await Store.setAcct(id, acct);
   Object.assign(S, {acctId: id, login: loginName.trim(), key: await importVault(raw), acct});
-  await loadVault(); await Store.log(id, 'password_reset'); startFam();
+  await loadVault(); await Store.log(id, 'password_reset'); startFam(); await afterUnlock();
 }
 function lock(reason) {
   if (!S.key) return;
@@ -935,6 +947,7 @@ function renderAuth() {
   <section class="auth">
     <div class="spread"><div class="brand"><div class="mark">₸</div><div><h1>Ақша Трекер</h1><p class="muted small">Все ваши карты и траты в одном месте</p></div></div>${langSwitch()}</div>
     ${t !== 'recover' ? `<div class="tabs2" role="tablist"><button role="tab" aria-selected="${t === 'login'}" data-act="toLogin">Вход</button><button role="tab" aria-selected="${t === 'signup'}" data-act="toSignup">Регистрация</button></div>` : '<h2>Восстановление доступа</h2>'}
+    ${S.payNote ? (S.payNote.bad ? '<div class="banner bad">Не удалось распознать покупку из Apple Pay. Проверьте текст в команде.</div>' : `<div class="banner good">Покупка ${esc(money(S.payNote.a, S.payNote.a > 0))} · ${esc(S.payNote.m)} ${S.payNote.first ? 'добавится после входа.' : 'сохранена в зашифрованный ящик. Войдите, чтобы увидеть её в ленте.'}</div>`) : (inboxCount() ? `<div class="banner">В ящике покупок из Apple Pay: ${inboxCount()}. Они появятся в ленте после входа.</div>` : '')}
     ${busy ? '<div class="banner">Подключаем хранилище…</div>' : storeNote}
     ${form}
     <div class="card stack small">
@@ -1605,6 +1618,115 @@ function sheetFamily() {
   });
 }
 
+// ───────────────────────── Apple Pay inbox ─────────────────────────
+// A Shortcut opens <app>#pay=<text>. Without the password the page can only ENCRYPT the purchase
+// with the account's public key and queue it; the private key lives inside the encrypted vault,
+// so the queue is read and moved into the feed only after the next unlock.
+const LS = {get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); return true; } catch { return false; } }, del: k => { try { localStorage.removeItem(k); } catch {} }};
+const INBOX = 'aksha:inbox', INBOX_PUB = 'aksha:inboxpub';
+const RSA = {name: 'RSA-OAEP', hash: 'SHA-256'};
+async function ensureInboxKeys() {
+  let jwk = S.settings.inboxPriv;
+  if (!jwk) {
+    const kp = await crypto.subtle.generateKey({...RSA, modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1])}, true, ['encrypt', 'decrypt']);
+    jwk = await crypto.subtle.exportKey('jwk', kp.privateKey); S.settings.inboxPriv = jwk; markSettings();
+  }
+  const pub = {kty: 'RSA', n: jwk.n, e: jwk.e, alg: 'RSA-OAEP-256', ext: true};
+  LS.set(INBOX_PUB, JSON.stringify({acct: S.acctId, login: S.login, k: pub}));
+}
+async function sealForInbox(obj) {
+  const meta = JSON.parse(LS.get(INBOX_PUB) || 'null'); if (!meta) return false;
+  const pub = await crypto.subtle.importKey('jwk', meta.k, RSA, false, ['encrypt']);
+  const aesRaw = rand(32); const aes = await importVault(aesRaw);
+  const box = await encJSON(aes, obj); const wk = b64(await crypto.subtle.encrypt(RSA, pub, aesRaw));
+  const list = JSON.parse(LS.get(INBOX) || '[]'); list.push({acct: meta.acct, wk, ...box}); return LS.set(INBOX, JSON.stringify(list.slice(-500)));
+}
+async function drainInbox() {
+  const list = JSON.parse(LS.get(INBOX) || '[]'); const mine = list.filter(x => x.acct === S.acctId); if (!mine.length || !S.settings.inboxPriv) return 0;
+  const priv = await crypto.subtle.importKey('jwk', S.settings.inboxPriv, RSA, false, ['decrypt']);
+  const rows = []; let lastBal = null;
+  for (const x of mine) {
+    try {
+      const aes = await importVault(new Uint8Array(await crypto.subtle.decrypt(RSA, priv, unb64(x.wk))));
+      const d = await decJSON(aes, x);
+      const t = parsePush(d.text, S.settings.rules); if (!t) continue;
+      if (d.d) { t.d = d.d; t.tm = d.tm || t.tm; }
+      t.card = matchCard(t.card, d.text); t.src = 'applepay';
+      if (t.balAfter !== null && isFinite(t.balAfter)) lastBal = {card: t.card, value: t.balAfter, at: txKey(t)};
+      delete t.balAfter; rows.push(t);
+    } catch {}
+  }
+  LS.set(INBOX, JSON.stringify(list.filter(x => x.acct !== S.acctId)));
+  const n = rows.length ? addTxs(rows) : 0;
+  if (lastBal) { const c = cardsList().find(c => c.name === lastBal.card); if (c) { c.bal = {value: lastBal.value, at: lastBal.at}; markSettings(); } }
+  if (n) Store.log(S.acctId, 'import', {n});
+  return n;
+}
+function inboxCount() { try { return JSON.parse(LS.get(INBOX) || '[]').length; } catch { return 0; } }
+async function afterUnlock() {
+  try { await ensureInboxKeys(); } catch {}
+  let n = 0; try { n = await drainInbox(); } catch {}
+  if (S.pendingPay) { const t = parsePush(S.pendingPay, S.settings.rules); S.pendingPay = null; if (t) { t.card = matchCard(t.card, ''); t.src = 'applepay'; delete t.balAfter; n += addTxs([t]); } }
+  if (n) setTimeout(() => toast(`Из Apple Pay добавлено: ${n}`), 400);
+}
+async function ingestHash() {
+  const h = location.hash || ''; if (!/^#pay=/.test(h)) return;
+  let text = ''; try { text = decodeURIComponent(h.slice(5).replace(/\+/g, ' ')); } catch { text = h.slice(5); }
+  try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+  const t = parsePush(text, {}); if (!t) { S.payNote = {bad: true, text}; return; }
+  const now = new Date(); const rec = {text, d: todayISO(), tm: `${pad(now.getHours())}:${pad(now.getMinutes())}`};
+  if (S.key) { t.card = matchCard(t.card, text); t.src = 'applepay'; delete t.balAfter; addTxs([t]); render(); toast(`Сохранено: ${money(t.a, t.a > 0)}`); return; }
+  const sealed = await sealForInbox(rec).catch(() => false);
+  if (sealed) S.payNote = {ok: true, a: t.a, m: t.m};
+  else { S.pendingPay = text; S.payNote = {first: true, a: t.a, m: t.m}; }
+}
+const appLink = () => location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent|anthropic/.test(location.host) ? location.origin + location.pathname : 'https://daulet-tuzelbek.github.io/aksha-tracker/';
+function sheetApplePay() {
+  const link = appLink();
+  openSheet(`<div class="stack"><div class="spread"><h2>Apple Pay автоматически</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <p class="small muted">Работает через приложение «Команды» на iPhone и только для оплат Apple Pay. Переводы и оплаты внутри банковских приложений добавляйте выпиской.</p>
+    <div class="card stack"><div class="lbl">Ссылка на ваше приложение</div><div class="reckey" id="apLink" style="font-size:13px;text-align:left"></div><button class="btn" id="apCopy">Скопировать ссылку</button></div>
+    <div class="card stack"><h3>Способ 1. Сразу после оплаты</h3>
+      <ol class="steps">
+        <li>«Команды» → «Автоматизация» → «+» → «Транзакция».</li>
+        <li>Выберите карты из Wallet, включите «Запускать сразу» и нажмите «Далее» → «Новая пустая команда».</li>
+        <li>Добавьте «Текст» и соберите строку: <b>Покупка</b>, затем переменные «Сумма», «Продавец», «Карта» из «Входные данные команды», через пробел.</li>
+        <li>Добавьте «Кодировать URL», вход — этот текст.</li>
+        <li>Добавьте ещё «Текст»: ссылка выше, сразу за ней <b>#pay=</b> и переменная «Закодированный URL».</li>
+        <li>Добавьте «Открыть URL-адреса» с этим текстом.</li>
+      </ol>
+      <p class="small muted">После оплаты на секунду откроется браузер. Пароль вводить не нужно: покупка шифруется и ждёт в ящике, а в ленту попадает при следующем входе. Один раз войдите на этом iPhone заранее.</p></div>
+    <div class="card stack"><h3>Способ 2. Незаметно, в файл</h3>
+      <ol class="steps">
+        <li>Та же автоматизация «Транзакция» с «Запускать сразу».</li>
+        <li>Добавьте «Форматировать дату»: «Текущая дата», формат ISO 8601.</li>
+        <li>Добавьте «Текст»: <b>AKSHA;</b>«Отформатированная дата»<b>;</b>«Сумма»<b>;</b>«Продавец»<b>;</b>«Карта».</li>
+        <li>Добавьте «Добавить в текстовый файл», файл <b>Aksha.txt</b> в iCloud Drive, «Новая строка» включена.</li>
+        <li>Раз в несколько дней: «+» → «Выписка» → выберите Aksha.txt. Повторы не задублируются.</li>
+      </ol>
+      <p class="small muted">Ничего не открывается после оплаты. Названия действий даны как в русском iOS, у вас они могут немного отличаться.</p></div>
+  </div>`, sh => {
+    $('#apLink', sh).textContent = link;
+    $('#apCopy', sh).onclick = () => navigator.clipboard?.writeText(link).then(() => toast('Скопировано'), () => { const r = document.createRange(); r.selectNodeContents($('#apLink', sh)); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Выделено, скопируйте вручную'); });
+  });
+}
+function parseAkshaLines(text, rules) {
+  const rows = []; let skipped = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    const l = raw.trim(); if (!/^AKSHA;/i.test(l)) continue;
+    const [, dt = '', amt = '', mer = '', card = ''] = l.split(';').map(s => s.trim());
+    let d = todayISO(), tm = '';
+    let m = dt.match(/(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/); if (m) { d = `${m[1]}-${m[2]}-${m[3]}`; tm = m[4] ? `${m[4]}:${m[5]}` : ''; }
+    else if ((m = dt.match(/(\d{2})\.(\d{2})\.(\d{2,4})(?:,?\s+(\d{1,2}):(\d{2}))?/))) { d = `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2]}-${m[1]}`; tm = m[4] ? `${pad(m[4])}:${m[5]}` : ''; }
+    const n = toNum(amt.replace(/[^\d,.\-−–\s  ]/g, '').trim());
+    if (!isFinite(n) || !n) { skipped++; continue; }
+    const a = /^\s*[+]/.test(amt) ? Math.abs(n) : -Math.abs(n);
+    const merchant = (mer || 'Apple Pay').slice(0, 60);
+    rows.push({id: uid8(), d, tm, a, m: merchant, c: guessCat(merchant, '', a, rules), card: matchCard(card, card), src: 'applepay'});
+  }
+  return {rows, skipped};
+}
+
 function viewAI() {
   const s = S.ai.sample;
   if (s === undefined) return {html: '<div class="card">Подключаем ИИ…</div>'};
@@ -1682,6 +1804,7 @@ function viewProfile() {
       <button class="btn block" data-act="cards">Мои карты</button>
       <button class="btn block" data-act="loans">Кредиты и долги</button>
       <button class="btn block" data-act="family">Семейный бюджет</button>
+      <button class="btn block" data-act="applepay">Apple Pay автоматически</button>
       <button class="btn block" data-act="budgets">Лимиты по категориям</button>
       ${hasEx ? '<button class="btn block" data-act="clearEx">Удалить пример данных</button>' : ''}
       <button class="btn danger block" data-act="wipe">Удалить аккаунт и все данные</button>
@@ -1727,22 +1850,13 @@ function sheetAdd(mode = 'push', initSign = -1) {
       <div id="pushPrev"></div>
       <button class="btn primary block" id="pushSave" disabled>Сохранить операцию</button>
     </form>
-    <details class="card"><summary>Мгновенно с iPhone через «Команды»</summary>
-      <ol class="steps" style="margin-top:10px">
-        <li>Откройте «Команды» → «Автоматизация» → «+» → «Транзакция».</li>
-        <li>Выберите карты из Wallet и включите «Запускать сразу».</li>
-        <li>Добавьте действие «Текст»: <b>Покупка [Сумма] [Продавец] [Карта]</b>, переменные берите из «Входные данные команды».</li>
-        <li>Добавьте «Скопировать в буфер обмена», затем «Открыть URL» со ссылкой на это приложение.</li>
-        <li>Здесь нажмите в поле и выберите «Вставить».</li>
-      </ol>
-      <p class="small muted" style="margin-top:8px">Срабатывает только на оплаты через Apple Pay. Переводы и оплаты в приложениях банков добавляйте выпиской.</p>
-    </details>
+    <button type="button" class="btn block" data-act="applepay">Apple Pay автоматически: инструкция</button>
     <details class="card"><summary>На Android</summary><p class="small" style="margin-top:8px">Скопируйте текст пуша из шторки или истории уведомлений и вставьте сюда. Автоматическое чтение пушей возможно только в нативном приложении, в этом демо его нет.</p></details>`;
   else if (mode === 'statement') body = `
     <div class="stack">
       <p class="small muted">PDF или CSV выписка из банка. Файл читается на вашем устройстве и никуда не загружается.</p>
       <div class="field"><label>Карта или счёт этой выписки</label>${cardPick(cardsList()[0]?.name || '')}</div>
-      <div class="field"><label for="stFile">Файл выписки</label><input id="stFile" type="file" accept=".pdf,.csv,text/csv,application/pdf"></div>
+      <div class="field"><label for="stFile">Файл выписки</label><input id="stFile" type="file" accept=".pdf,.csv,.txt,text/csv,text/plain,application/pdf"></div>
       <div id="stPrev"></div>
     </div>`;
   else body = `
@@ -1780,7 +1894,7 @@ function sheetAdd(mode = 'push', initSign = -1) {
           const spend = res.rows.filter(r => r.a < 0).reduce((s, r) => s - r.a, 0);
           const dates = res.rows.map(r => r.d).sort();
           prev.innerHTML = `<div class="stack">
-            <div class="banner good">Найдено ${res.rows.length} ${plural(res.rows.length, 'операция', 'операции', 'операций')} с ${esc(dayLabel(dates[0]))} по ${esc(dayLabel(dates[dates.length - 1]))}. Расходы ${money(spend)}.${res.skipped ? ` Не распознано строк: ${res.skipped}.` : ''}</div>
+            <div class="banner good">Найдено ${res.rows.length} ${plural(res.rows.length, 'операция', 'операции', 'операций')} с ${esc(dayLabel(dates[0]).toLowerCase())} по ${esc(dayLabel(dates[dates.length - 1]).toLowerCase())}. Расходы ${money(spend)}.${res.skipped ? ` Не распознано строк: ${res.skipped}.` : ''}</div>
             <div class="tbl"><table><thead><tr><th>Дата</th><th>Сумма</th><th>Описание</th><th>Категория</th></tr></thead><tbody>${res.rows.slice(0, 8).map(r => `<tr><td class="num">${esc(r.d.split('-').reverse().join('.'))}</td><td class="num">${money(r.a, r.a > 0)}</td><td>${esc(r.m)}</td><td>${esc(r.c)}</td></tr>`).join('')}</tbody></table></div>
             ${res.rows.length > 8 ? `<p class="small muted">и ещё ${res.rows.length - 8}</p>` : ''}
             <button class="btn primary block" id="stImport">Импортировать</button></div>`;
@@ -1924,7 +2038,7 @@ document.addEventListener('click', e => {
     closeSheet: closeSheet, openAdd: () => sheetAdd(), cards: sheetCards, editCard: sheetEditCard, loans: sheetLoans, loanAdd: sheetLoanAdd, pickAcc: sheetPickAcc, pickCat: sheetPickCat,
     toggleBal: () => { S.hideBal = !S.hideBal; try { localStorage.setItem('aksha:hideBal', S.hideBal ? '1' : '0'); } catch {} render(); },
     clearFilters: () => { S.filterCard = ''; S.filterCat = ''; S.filterAuthor = ''; S.q = ''; S.searchOpen = false; render(); },
-    family: sheetFamily, scopeFamily: () => { S.scope = 'family'; S.filterCard = ''; render(); },
+    family: sheetFamily, applepay: sheetApplePay, scopeFamily: () => { S.scope = 'family'; S.filterCard = ''; render(); },
     pickAuthor: () => { const names = [...new Set(famRows().map(t => t.author))]; openSheet(`<div class="stack"><div class="spread"><h2>Автор</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div><div class="group">${['', ...names].map(n => `<button class="frow" data-author="${esc(n)}"><span class="fico" style="background:var(--sunk)">${svgIcon('user1', 22)}</span><span class="ft">${n ? esc(n) : 'Все участники'}</span><span>${S.filterAuthor === n ? svgIcon('check', 22, 'var(--accent)') : ''}</span></button>`).join('')}</div></div>`, sh => sh.querySelectorAll('[data-author]').forEach(b => b.onclick = () => { S.filterAuthor = b.dataset.author; closeSheet(); render(); })); },
     openSearch: () => { S.searchOpen = true; render(); $('#q')?.focus(); }, closeSearch: () => { S.searchOpen = false; S.q = ''; render(); }, alerts: sheetAlerts, budgets: sheetBudgets,
     loadExample: () => { addTxs(exampleTxs()); runAlerts(true); render(); try { scrollTo(0, 0); } catch {} toast('Загружен пример данных'); },
@@ -1941,6 +2055,8 @@ async function initAI() {
 
 // ───────────────────────── boot ─────────────────────────
 applyLangArrays(); startTranslator();
+ingestHash().then(() => { if (S.view === 'auth') render(); });
+addEventListener('hashchange', () => ingestHash().then(() => { if (S.view === 'auth') render(); }));
 render();
 Store.init().then(() => { if (S.view === 'auth') render(); initAI(); });
 })();
