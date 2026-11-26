@@ -1,0 +1,1949 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Ақша Трекер</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: phone-first app shell — sticky month header, scrolling screen, fixed bottom tab bar; widens to a centered 560px column on desktop. */
+:root{
+  --bg:#F2F4F3; --surface:#FFFFFF; --sunk:#E8ECEA; --ink:#15201C; --muted:#5D6A65; --line:#D9E0DD;
+  --accent:#2350D2; --accent-ink:#FFFFFF; --accent-soft:#E3E9FB;
+  --good:#1D7F55; --warn:#B26B0B; --bad:#C23E36; --warn-soft:#FBEFD9; --bad-soft:#F9E1DE; --good-soft:#DDF1E7;
+  --font:"Onest",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1412; --surface:#171F1C; --sunk:#111816; --ink:#E6EDEA; --muted:#93A29B; --line:#27322E;
+  --accent:#7D9CFF; --accent-ink:#0C1530; --accent-soft:#1D2747;
+  --good:#5CC99A; --warn:#E7AE52; --bad:#F07F76; --warn-soft:#3A2D15; --bad-soft:#3D1F1C; --good-soft:#163428; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1412; --surface:#171F1C; --sunk:#111816; --ink:#E6EDEA; --muted:#93A29B; --line:#27322E;
+  --accent:#7D9CFF; --accent-ink:#0C1530; --accent-soft:#1D2747;
+  --good:#5CC99A; --warn:#E7AE52; --bad:#F07F76; --warn-soft:#3A2D15; --bad-soft:#3D1F1C; --good-soft:#163428; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 110px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:650;letter-spacing:-.01em}
+h1{font-size:26px} h2{font-size:19px} h3{font-size:15px}
+p{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.lbl{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--bad)}
+.btn.block{width:100%}
+.btn:disabled{opacity:.5;cursor:default}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:13px;color:var(--muted);font-weight:500}
+input[type=text],input[type=password],input[type=number],input[type=date],select,textarea{width:100%;min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+textarea{min-height:96px;resize:vertical}
+.stack{display:flex;flex-direction:column;gap:12px}
+.stack.lg{gap:20px}
+.row{display:flex;gap:10px;align-items:center}
+.row.wrap2{flex-wrap:wrap}
+.spread{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--sunk);color:var(--muted);white-space:nowrap}
+.chip.ex{background:var(--warn-soft);color:var(--warn)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;white-space:nowrap}
+.chips button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.banner{border-radius:12px;padding:10px 12px;font-size:13px;background:var(--sunk);color:var(--muted)}
+.banner.warn{background:var(--warn-soft);color:var(--warn)}
+.banner.bad{background:var(--bad-soft);color:var(--bad)}
+.banner.good{background:var(--good-soft);color:var(--good)}
+/* auth */
+.auth{min-height:100%;display:flex;flex-direction:column;gap:22px;padding-top:28px}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{width:38px;height:38px;border-radius:11px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:19px}
+.tabs2{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border-radius:12px;padding:4px}
+.tabs2 button{border:0;background:transparent;border-radius:9px;min-height:38px;font-weight:600;color:var(--muted)}
+.tabs2 button[aria-selected=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.reckey{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17px;letter-spacing:.04em;word-break:break-all;background:var(--sunk);border-radius:12px;padding:14px;text-align:center}
+/* app header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.month{display:flex;align-items:center;gap:4px}
+.month button{width:36px;height:36px;border-radius:10px;border:0;background:transparent;font-size:20px;color:var(--muted)}
+.month b{font-weight:650;font-size:17px;min-width:128px;text-align:center}
+.iconbtn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;position:relative}
+.dot{position:absolute;top:7px;right:7px;width:8px;height:8px;border-radius:50%;background:var(--bad)}
+/* overview */
+.hero{display:flex;flex-direction:column;gap:4px}
+.hero .big{font-size:34px;font-weight:700;letter-spacing:-.02em}
+.kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;overflow:hidden}
+.kpi .v{font-weight:650;font-size:14px;white-space:nowrap}
+.cat{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.bar{grid-column:1/-1;height:8px;border-radius:6px;background:var(--sunk);position:relative;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--accent)}
+.bar i.over{background:var(--bad)} .bar i.near{background:var(--warn)}
+.bar s{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.55}
+svg text{fill:var(--muted);font-family:var(--font);font-size:11px}
+/* transactions */
+.day{font-size:13px;font-weight:600;color:var(--muted);padding:14px 2px 6px;display:flex;justify-content:space-between}
+.tx{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;width:100%;text-align:left}
+.tx + .tx{margin-top:6px}
+.ico{width:40px;height:40px;border-radius:11px;background:var(--sunk);display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--muted)}
+.tx .m{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx .meta{font-size:12px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap}
+.amt{font-weight:650;white-space:nowrap}
+.amt.in{color:var(--good)}
+.minw{min-width:0}
+/* nav */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.nav button{border:0;background:transparent;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;font-weight:600;color:var(--muted)}
+.nav button[aria-current=page]{color:var(--accent)}
+.nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav .plus span{width:46px;height:46px;border-radius:14px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;margin-top:-6px}
+.nav .plus svg{stroke:var(--accent-ink)}
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,15,13,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92%;overflow:auto;border-radius:20px 20px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px}
+.seg{display:flex;gap:6px;background:var(--sunk);padding:4px;border-radius:12px}
+.seg button{flex:1;border:0;background:transparent;border-radius:9px;min-height:36px;font-weight:600;font-size:13px;color:var(--muted)}
+.seg button[aria-selected=true]{background:var(--surface);color:var(--ink)}
+.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tbl table{border-collapse:collapse;width:100%;font-size:13px}
+.tbl td,.tbl th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.tbl th{color:var(--muted);font-weight:600}
+.alert{display:grid;grid-template-columns:8px 1fr;gap:12px;padding:12px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.alert i{border-radius:4px;background:var(--accent)}
+.alert.warn i{background:var(--warn)} .alert.bad i{background:var(--bad)} .alert.good i{background:var(--good)}
+.ai-out{white-space:pre-wrap;min-height:60px}
+pre.peek{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var(--sunk);border-radius:12px;padding:12px;margin:0;max-height:180px;overflow:auto}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:500;max-width:calc(100% - 32px)}
+.list-plain{display:flex;flex-direction:column;gap:0}
+.list-plain > div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.list-plain > div:last-child{border-bottom:0}
+.cico{display:grid;place-items:center;border-radius:12px;flex:none}
+.bbadge{display:inline-grid;place-items:center;border-radius:6px;color:#fff;font-weight:700;letter-spacing:-.02em;flex:none;line-height:1}
+.icowrap{position:relative;width:40px;height:40px}
+.icowrap .bbadge{position:absolute;right:-4px;bottom:-4px;border:2px solid var(--surface);border-radius:7px;box-sizing:content-box}
+.wallet{display:flex;gap:10px;overflow-x:auto;padding:7px 7px 10px;margin-inline:-7px;scroll-snap-type:x mandatory}
+.wcard{flex:none;width:168px;height:104px;border-radius:16px;padding:12px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;border:0;text-align:left;scroll-snap-align:start;position:relative;overflow:hidden;box-shadow:0 6px 18px rgba(10,20,40,.14)}
+.wcard::after{content:"";position:absolute;right:-30px;top:-40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.10)}
+.wcard .wb{display:flex;align-items:center;gap:8px;font-weight:650;font-size:14px;position:relative;z-index:1;min-width:0}
+.wcard .wb span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wcard .wb .bbadge{background:rgba(255,255,255,.22)!important}
+.wcard .ws{font-size:19px;font-weight:700;position:relative;z-index:1}
+.wcard .wl{font-size:11px;opacity:.85;position:relative;z-index:1}
+.wcard[aria-pressed=true]{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--accent)}
+.wcard.all{background:var(--ink);color:var(--bg)}
+.wcard.add{background:var(--surface);color:var(--muted);border:1.5px dashed var(--line);box-shadow:none;align-items:center;justify-content:center;gap:6px;width:110px;font-weight:600;font-size:13px}
+.wcard.add::after,.wcard.all::after{display:none}
+.dn{display:grid;grid-template-columns:140px 1fr;gap:16px;align-items:center}
+.dn .center{position:relative;width:140px;height:140px}
+.dn .center b{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-size:13px;line-height:1.25;font-weight:600}
+.legend{display:flex;flex-direction:column;gap:8px;min-width:0}
+.legend button{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;border:0;background:none;padding:0;text-align:left;font-size:13px;width:100%}
+.legend i{width:10px;height:10px;border-radius:3px}
+.legend span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.catgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.catgrid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:11px;font-weight:600;line-height:1.2;text-align:center;min-height:84px;min-width:0}
+.catgrid button[aria-pressed=true],.bankgrid button[aria-pressed=true],.cardpick button[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.bankgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.bankgrid button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13px;min-width:0}
+.cardpick{display:flex;gap:8px;overflow-x:auto;padding:2px}
+.cardpick button{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font-weight:600;font-size:13px;white-space:nowrap}
+.amtbig{font-size:40px;font-weight:700;text-align:center;border:0!important;background:transparent!important;min-height:64px;letter-spacing:-.02em}
+.stackw{display:flex;flex-direction:column;margin-top:4px}
+.peek{border:0;color:#fff;height:46px;border-radius:22px 22px 0 0;margin-bottom:-18px;padding:10px 22px 0;display:flex;justify-content:space-between;align-items:flex-start;font-weight:650;font-size:15px}
+.peek .dots{letter-spacing:.15em;opacity:.7;font-size:13px}
+.acard{position:relative;border-radius:26px;padding:20px;color:#fff;border:1px solid rgba(255,255,255,.08);box-shadow:0 14px 30px rgba(15,25,22,.18);z-index:1;overflow:hidden}
+.acard::before{content:"";position:absolute;inset:auto -60px -120px auto;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.06)}
+.glass{width:46px;height:46px;border-radius:14px;border:0;background:rgba(255,255,255,.16);display:grid;place-items:center;flex:none}
+.eye{border:0;background:none;padding:2px;display:grid;place-items:center;opacity:.9}
+.abal{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.setbal{align-self:flex-start;margin-top:6px;border:0;border-radius:12px;background:rgba(255,255,255,.18);color:#fff;font-weight:600;padding:10px 14px}
+.aflow{display:flex;justify-content:space-between;gap:12px;margin:20px -20px -20px;padding:14px 20px 18px;border-top:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.08)}
+.aflow .fv{font-size:20px;font-weight:650}
+.fl{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.18);flex:none}
+.fl.in svg{stroke:#8EF0BE} .fl.out svg{stroke:#FFB3A8}
+.period{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--surface);border-radius:0 0 22px 22px;padding:28px 8px 8px;margin-top:-22px;border:1px solid var(--line);border-top:0}
+.period button{border:0;background:transparent;min-height:46px;border-radius:16px;font-weight:600;font-size:15px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+.period button[aria-selected=true]{background:var(--ink);color:var(--bg)}
+.mnav{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;font-weight:600;color:var(--muted);font-size:14px}
+.mnav button{width:34px;height:34px;border-radius:50%;border:0;background:var(--surface);display:grid;place-items:center;color:var(--ink)}
+.mnav button:disabled{opacity:.3}
+.pills{display:flex;gap:8px;margin-top:16px;overflow-x:auto;padding:1px}
+.pills button{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;min-height:46px;padding:0 18px;font-weight:600;font-size:15px;white-space:nowrap;flex:1;justify-content:center}
+.pills button.on{border-color:var(--ink)}
+.pills button.x{flex:none;padding:0 14px}
+.cdot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.feed{margin-top:6px}
+.dhead{display:flex;justify-content:space-between;gap:10px;padding:20px 4px 8px;font-size:15px;font-weight:600;color:var(--muted)}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.frow{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:center;width:100%;border:0;background:transparent;padding:12px 16px;text-align:left;position:relative}
+.frow + .frow::before{content:"";position:absolute;left:78px;right:0;top:0;border-top:1px solid var(--line)}
+.fico{width:48px;height:48px;border-radius:14px;display:grid;place-items:center}
+.ft{display:block;font-size:17px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fs{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted);min-width:0}
+.fs > span:not(.chip):not(.bbadge){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fa{font-size:17px;font-weight:650;white-space:nowrap}
+.fa.in{color:var(--good)}
+.htop{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-block:6px 12px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg)}
+.rbtn{width:48px;height:48px;border-radius:50%;border:0;background:var(--surface);display:grid;place-items:center;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.rbtn.me{background:var(--ink);color:var(--bg);font-weight:700;font-size:18px}
+.rbtn .badge{position:absolute;top:-3px;right:-3px;min-width:20px;height:20px;border-radius:10px;background:var(--good);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;border:2px solid var(--bg);padding:0 4px}
+.searchbar{display:flex;gap:8px;margin-bottom:12px}
+.fnav{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:8;pointer-events:none;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.fnav .in{max-width:528px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between}
+.fnav .bar2{pointer-events:auto;display:flex;gap:6px;background:#1A211F;border-radius:999px;padding:6px;box-shadow:0 10px 24px rgba(0,0,0,.22);flex:1;max-width:380px}
+.fnav .bar2 button{border:0;background:rgba(255,255,255,.08);color:#C9D3CF;height:52px;min-width:52px;border-radius:999px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:650;font-size:15px;flex:1}
+.fnav .bar2 button[aria-current=page]{background:#fff;color:#141A18;flex:2.2}
+.fnav .bar2 button span{display:none}
+.fnav .bar2 button[aria-current=page] span{display:inline}
+.fnav .fab{pointer-events:auto;width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);display:grid;place-items:center;box-shadow:0 10px 24px rgba(0,0,0,.22);flex:none}
+.wrap{padding-block:8px 120px}
+.langsw{display:flex;background:var(--sunk);border-radius:10px;padding:3px;flex:none}
+.langsw button{border:0;background:transparent;border-radius:8px;padding:6px 10px;font-weight:700;font-size:12px;color:var(--muted)}
+.langsw button[aria-pressed=true]{background:var(--surface);color:var(--ink)}
+.addgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.addgrid button{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:16px;border-radius:18px;border:1px solid var(--line);background:var(--surface);text-align:left;min-height:140px}
+.addgrid b{font-size:17px}
+.addgrid button:nth-child(5){grid-column:1/-1;min-height:0}
+.lstrip{display:grid;grid-template-columns:48px 1fr auto;gap:14px;align-items:center;width:100%;margin-top:14px;padding:12px 16px;border-radius:22px;border:1px solid var(--line);background:var(--surface);text-align:left}
+.lrow{display:flex;flex-direction:column;gap:8px;padding:14px 16px}
+.lrow + .lrow{border-top:1px solid var(--line)}
+details summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:14px}
+@media (prefers-reduced-motion: no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px)}to{transform:none}}}
+@media (max-width:380px){.kpis{grid-template-columns:1fr 1fr}.hero .big{font-size:30px}}
+/* ── iOS layer: system type, system colors, inset grouped lists, translucent bars ── */
+:root{--bg:#F2F2F7;--surface:#FFFFFF;--sunk:#E9E9EE;--ink:#000000;--muted:#6C6C70;--line:#D1D1D6;--accent:#007AFF;--accent-ink:#FFFFFF;--accent-soft:#E5F0FF;--good:#248A3D;--warn:#C93400;--bad:#D70015;--good-soft:#E3F6E8;--warn-soft:#FFF1E0;--bad-soft:#FFE5E3;--fill:rgba(120,120,128,.12);--bar:rgba(249,249,249,.82);
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Onest",system-ui,"Segoe UI",Roboto,sans-serif;--display:-apple-system,BlinkMacSystemFont,"SF Pro Display","Onest",system-ui,sans-serif}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#000000;--surface:#1C1C1E;--sunk:#2C2C2E;--ink:#FFFFFF;--muted:#98989F;--line:#38383A;--accent:#0A84FF;--accent-ink:#FFFFFF;--accent-soft:#0A2A4F;--good:#30D158;--warn:#FF9F0A;--bad:#FF453A;--good-soft:#0F2E18;--warn-soft:#33240A;--bad-soft:#3A1412;--fill:rgba(120,120,128,.24);--bar:rgba(22,22,24,.82);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#000000;--surface:#1C1C1E;--sunk:#2C2C2E;--ink:#FFFFFF;--muted:#98989F;--line:#38383A;--accent:#0A84FF;--accent-ink:#FFFFFF;--accent-soft:#0A2A4F;--good:#30D158;--warn:#FF9F0A;--bad:#FF453A;--good-soft:#0F2E18;--warn-soft:#33240A;--bad-soft:#3A1412;--fill:rgba(120,120,128,.24);--bar:rgba(22,22,24,.82);color-scheme:dark}
+body{font-family:var(--font);font-size:17px;letter-spacing:-.01em}
+h1,h2,.abal,.ltitle{font-family:var(--display)}
+.wrap{padding-block:4px 110px}
+.btn{border-radius:12px;border:0;background:var(--fill);font-weight:600;font-size:17px;min-height:50px}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.danger{color:var(--bad)}
+input[type=text],input[type=password],input[type=number],input[type=date],select,textarea{border:0;background:var(--surface);border-radius:12px;font-size:17px;min-height:48px}
+.sheet input[type=text],.sheet input[type=password],.sheet input[type=number],.sheet input[type=date],.sheet select,.sheet textarea{background:var(--surface)}
+.card{border:0;border-radius:14px}
+.group{border:0;border-radius:14px}
+.frow{padding:11px 16px;gap:12px;grid-template-columns:40px 1fr auto}
+.frow + .frow::before{left:68px;border-top:.5px solid var(--line)}
+.fico{width:40px;height:40px;border-radius:50%}
+.ft{font-size:17px;font-weight:500}
+.fs{font-size:15px}
+.fa{font-size:17px;font-weight:500}
+.dhead{padding:22px 16px 7px;font-size:13px;font-weight:400;text-transform:uppercase;letter-spacing:.02em}
+.fs .chip{font-size:12px}
+/* nav bar with large title */
+.nav2{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:8px 4px}
+.ltitle{font-size:34px;font-weight:700;letter-spacing:.01em;margin:2px 0 10px}
+.navbtns{display:flex;gap:6px;align-items:center}
+.nb{width:36px;height:36px;border-radius:50%;border:0;background:var(--fill);display:grid;place-items:center;color:var(--accent);position:relative}
+.nb.me{background:var(--accent);color:#fff;font-weight:600;font-size:15px}
+.nb .badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;border-radius:9px;background:var(--bad);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 4px;border:2px solid var(--bg)}
+/* card carousel */
+.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:auto;margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:6px max(16px,env(safe-area-inset-left,0px)) 14px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.carousel::-webkit-scrollbar{display:none}
+.slide{flex:0 0 calc(100% - 44px);max-width:470px;scroll-snap-align:center;scroll-snap-stop:always}
+.pcard{position:relative;height:198px;border-radius:20px;padding:18px;color:#fff;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;box-shadow:0 10px 24px rgba(0,0,0,.16),inset 0 0 0 .5px rgba(255,255,255,.18);transition:transform .25s ease,opacity .25s ease}
+.pcard::before{content:"";position:absolute;inset:-40% -30% auto auto;width:300px;height:300px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.22),transparent)}
+.pcard::after{content:"";position:absolute;inset:auto auto -60% -20%;width:320px;height:320px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.18),transparent)}
+.pcard > *{position:relative;z-index:1}
+.pcard .ptop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pcard .pname{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px;min-width:0}
+.pcard .pname span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pcard .plbl{font-size:13px;opacity:.75}
+.pcard .pbal{font-family:var(--display);font-size:34px;font-weight:700;letter-spacing:-.01em;line-height:1.1;display:flex;align-items:center;gap:8px}
+.pcard .pfoot{display:flex;justify-content:space-between;align-items:flex-end;font-size:13px;opacity:.85}
+.pcard .pnum{letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.pcard .pgear{width:34px;height:34px;border-radius:50%;border:0;background:rgba(255,255,255,.18);display:grid;place-items:center;flex:none}
+.pcard .peye{border:0;background:none;padding:0;display:grid;place-items:center;opacity:.85}
+.pcard .pset{border:0;background:rgba(255,255,255,.2);color:#fff;border-radius:10px;padding:8px 12px;font-weight:600;font-size:15px;align-self:flex-start}
+.pcard.addc{background:var(--surface);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--line);align-items:center;justify-content:center;gap:10px;font-weight:600}
+.pcard.addc::before,.pcard.addc::after{display:none}
+.dots{display:flex;justify-content:center;gap:7px;margin-top:-4px}
+.dots button{width:7px;height:7px;border-radius:50%;border:0;padding:0;background:var(--line);transition:width .2s,background .2s}
+.dots button[aria-current=true]{background:var(--ink);width:18px;border-radius:4px}
+/* quick actions */
+.qa{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.qa button{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;font-size:12px;font-weight:500;color:var(--ink)}
+.qa button span.qi{width:52px;height:52px;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--accent);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+/* segmented control */
+.segc{display:grid;grid-template-columns:repeat(3,1fr);background:var(--fill);border-radius:9px;padding:2px;margin-top:18px}
+.segc button{border:0;background:transparent;border-radius:7px;min-height:32px;font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
+.segc button[aria-selected=true]{background:var(--surface);font-weight:600;box-shadow:0 3px 8px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04)}
+.sum2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.sum2 > div{background:var(--surface);border-radius:14px;padding:12px 14px;min-width:0}
+.sum2 .sv{font-family:var(--display);font-size:22px;font-weight:700;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sum2 .sl{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.chipsrow{display:flex;gap:8px;margin-top:14px;overflow-x:auto;scrollbar-width:none}
+.chipsrow button{display:flex;align-items:center;gap:6px;border:0;background:var(--fill);color:var(--ink);border-radius:999px;min-height:34px;padding:0 14px;font-size:15px;font-weight:500;white-space:nowrap}
+.chipsrow button.on{background:var(--accent);color:#fff}
+.lstrip{border:0;border-radius:14px;margin-top:12px;padding:11px 16px;grid-template-columns:40px 1fr auto;gap:12px}
+/* translucent tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:8;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+.tabbar .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+.tabbar button{border:0;background:none;min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;font-weight:500;color:#8E8E93}
+.tabbar button[aria-current=page]{color:var(--accent)}
+.tabbar .addt span{width:40px;height:40px;border-radius:50%;background:var(--accent);display:grid;place-items:center}
+/* sheets */
+.scrim{background:rgba(0,0,0,.35)}
+.sheet{background:var(--bg);border-radius:14px 14px 0 0}
+.sheet h2{font-size:17px;font-weight:600}
+.sheet .spread > .btn.ghost[data-act=closeSheet]{min-height:36px;padding:0 4px;font-weight:600}
+.seg{background:var(--fill);border-radius:9px;padding:2px}
+.seg button{border-radius:7px;min-height:32px;color:var(--ink);font-weight:500}
+.seg button[aria-selected=true]{background:var(--surface);font-weight:600;box-shadow:0 3px 8px rgba(0,0,0,.12)}
+.catgrid button,.bankgrid button,.cardpick button,.addgrid button{border:0}
+.catgrid button[aria-pressed=true],.bankgrid button[aria-pressed=true],.cardpick button[aria-pressed=true]{box-shadow:0 0 0 2px var(--accent) inset}
+.addgrid button{border-radius:14px}
+.kpi{border:0}
+.chart-legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13px;color:var(--muted)}
+.chart-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.toast{border-radius:14px;background:rgba(30,30,32,.92);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+@media (prefers-reduced-motion: reduce){.pcard{transition:none}}
+</style>
+</head>
+<body>
+<div id="app" class="wrap"></div>
+<div id="sheetRoot"></div>
+<div id="toastRoot" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+// ───────────────────────── helpers ─────────────────────────
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const te = new TextEncoder(), td = new TextDecoder();
+const b64 = buf => { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const rand = n => crypto.getRandomValues(new Uint8Array(n));
+let MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+let MONTHS_G = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const pad = n => String(n).padStart(2, '0');
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const ymOf = iso => iso.slice(0, 7);
+const ymShift = (ym, k) => { let [y, m] = ym.split('-').map(Number); m += k; while (m < 1) { m += 12; y--; } while (m > 12) { m -= 12; y++; } return `${y}-${pad(m)}`; };
+const ymLabel = ym => { const [y, m] = ym.split('-').map(Number); return `${MONTHS[m-1]} ${y}`; };
+const daysIn = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m, 0).getDate(); };
+const nf0 = new Intl.NumberFormat('ru-RU', {maximumFractionDigits: 0});
+const nf2 = new Intl.NumberFormat('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const money = (n, sign = false) => { const a = Math.abs(n); const s = Number.isInteger(Math.round(a*100)/100) ? nf0.format(a) : nf2.format(a); return (sign ? (n < 0 ? '−' : '+') : (n < 0 ? '−' : '')) + s + ' ₸'; };
+const short = n => { const a = Math.abs(n); if (a >= 1e6) return (n/1e6).toFixed(a >= 1e7 ? 0 : 1).replace('.', ',') + ' млн'; if (a >= 1e3) return Math.round(n/1e3) + ' тыс'; return String(Math.round(n)); };
+const dayLabel = iso => { const [y, m, d] = iso.split('-').map(Number); const t = todayISO(); if (iso === t) return LANG === 'kk' ? 'Бүгін' : 'Сегодня'; const yd = new Date(); yd.setDate(yd.getDate()-1); if (iso === `${yd.getFullYear()}-${pad(yd.getMonth()+1)}-${pad(yd.getDate())}`) return LANG === 'kk' ? 'Кеше' : 'Вчера'; return `${d} ${MONTHS_G[m-1]}${y !== new Date().getFullYear() ? ' ' + y : ''}`; };
+const uid8 = () => b64(rand(9)).replace(/[+/=]/g, '').slice(0, 12);
+async function sha256hex(s) { const h = await crypto.subtle.digest('SHA-256', te.encode(s)); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join(''); }
+
+// ───────────────────────── i18n: русский / қазақша ─────────────────────────
+// Translation is applied to rendered text after each render (exact phrases + patterns), so templates stay in Russian.
+const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTHS_G_RU = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const MONTHS_KK = ['Қаңтар','Ақпан','Наурыз','Сәуір','Мамыр','Маусым','Шілде','Тамыз','Қыркүйек','Қазан','Қараша','Желтоқсан'];
+const WD_RU = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'], WD_KK = ['Жс','Дс','Сс','Ср','Бс','Жм','Сн'];
+let LANG = (() => { try { return localStorage.getItem('aksha:lang') === 'kk' ? 'kk' : 'ru'; } catch { return 'ru'; } })();
+function applyLangArrays() {
+  MONTHS = LANG === 'kk' ? MONTHS_KK : MONTHS_RU;
+  MONTHS_G = LANG === 'kk' ? MONTHS_KK.map(m => m.toLowerCase()) : MONTHS_G_RU;
+  WD = LANG === 'kk' ? WD_KK : WD_RU;
+  document.documentElement.lang = LANG === 'kk' ? 'kk' : 'ru';
+}
+const KK = {
+  'Добавить карту': 'Карта қосу', 'Кредиты': 'Несиелер', 'Траты по дням': 'Күндік шығындар', 'Регулярные платежи': 'Тұрақты төлемдер', 'Оплачено в этом месяце': 'Осы айда төленді', 'Выбор карты': 'Карта таңдау', 'Карты': 'Карталар', 'Траты по дням по категориям': 'Санаттар бойынша күндік шығын', 'Расходы семьи': 'Отбасы шығыстары',
+  'Семья': 'Отбасы', 'Семейный бюджет': 'Отбасылық бюджет', 'Общий бюджет': 'Ортақ бюджет', 'Автор': 'Автор', 'Все участники': 'Барлық қатысушылар', 'Участники': 'Қатысушылар', 'Пригласить': 'Шақыру', 'Скопировать код': 'Кодты көшіру', 'Мои общие карты': 'Менің ортақ карталарым',
+  'Операции с этих карт видят все участники семьи.': 'Бұл карталардың операцияларын отбасының барлық мүшесі көреді.', 'Выйти из семьи': 'Отбасыдан шығу', 'Создать': 'Құру', 'Присоединиться': 'Қосылу', 'Создать семью': 'Отбасы құру',
+  'Как вас подписывать в семье': 'Отбасында сізді қалай атаймыз', 'Код приглашения': 'Шақыру коды', 'Вставьте код, который вам прислали': 'Сізге жіберілген кодты қойыңыз', 'Какие карты сделать общими': 'Қай карталарды ортақ ету',
+  'Общие траты с супругом или семьёй. Каждый видит операции с карт, которые участник сам сделал общими. Данные шифруются общим семейным ключом, сервер их не видит.': 'Жұбайыңызбен немесе отбасымен ортақ шығындар. Әркім қатысушы өзі ортақ еткен карталардың операцияларын көреді. Деректер ортақ отбасылық кілтпен шифрланады, сервер оларды көрмейді.',
+  'Отправьте этот код близкому человеку. С ним он откроет общий бюджет, поэтому не публикуйте код. Чтобы приглашённый мог открыть само приложение, поделитесь им через меню «Поделиться» с правом вносить изменения.': 'Бұл кодты жақын адамыңызға жіберіңіз. Ол код арқылы ортақ бюджетті ашады, сондықтан кодты жарияламаңыз. Шақырылған адам қолданбаның өзін ашуы үшін, оны «Бөлісу» мәзірі арқылы өзгерту құқығымен бөлісіңіз.',
+  'Семейный бюджет работает только с облачным хранилищем. Откройте приложение в Claude.': 'Отбасылық бюджет тек бұлттық сақтаумен жұмыс істейді. Қолданбаны Claude ішінде ашыңыз.', 'Вы вышли из семьи': 'Сіз отбасыдан шықтыңыз',
+  'Кредит или долг': 'Несие немесе қарыз', 'Рассрочка, кредит, кто кому должен': 'Бөліп төлеу, несие, кім кімге қарыз', 'Кредит или рассрочка': 'Несие немесе бөліп төлеу', 'Я должен': 'Мен қарызбын', 'Мне должны': 'Маған қарыз', 'Кредит': 'Несие',
+  'Новый кредит или долг': 'Жаңа несие немесе қарыз', 'Назад': 'Артқа', 'Банк или магазин': 'Банк немесе дүкен', 'Кому должен': 'Кімге қарызмын', 'Кто должен': 'Кім қарыз', 'Имя': 'Аты', 'Сумма, ₸': 'Сома, ₸', 'Осталось, ₸': 'Қалды, ₸', '= сумма': '= сома',
+  'Платёж в месяц, ₸': 'Айлық төлем, ₸', 'День платежа': 'Төлем күні', 'Карта для списания': 'Шегерілетін карта', 'Вернуть до, необязательно': 'Қайтару мерзімі, міндетті емес', 'Например, Kaspi Red, рассрочка': 'Мысалы, Kaspi Red, бөліп төлеу',
+  'Внести платёж': 'Төлем енгізу', 'Я вернул': 'Қайтардым', 'Мне вернули': 'Маған қайтарды', 'Закрыто': 'Жабылды', 'Убрать из списка': 'Тізімнен алу', 'Удалить?': 'Өшіру керек пе?', 'Добавить': 'Қосу',
+  'Добавьте кредит, рассрочку или долг, и мы напомним о платеже заранее.': 'Несие, бөліп төлеу немесе қарыз қосыңыз, төлем туралы алдын ала еске саламыз.', 'С какой карты': 'Қай картадан', 'На какую карту': 'Қай картаға', 'Записать операцию в ленту': 'Операцияны таспаға жазу', 'Закрыто полностью': 'Толық жабылды',
+  'Что добавить?': 'Не қосамыз?', 'Покупка, оплата, перевод': 'Сатып алу, төлем, аударым', 'Зарплата, возврат, перевод вам': 'Жалақы, қайтарым, сізге аударым', 'Вставить текст уведомления банка': 'Банк хабарламасын қою', 'PDF или CSV из банка': 'Банктен PDF немесе CSV',
+  'Откройте «Команды» → «Автоматизация» → «+» → «Транзакция».': '«Команды» → «Автоматизация» → «+» → «Транзакция» ашыңыз.',
+  'Выберите карты из Wallet и включите «Запускать сразу».': 'Wallet-тен карталарды таңдап, «Запускать сразу» қосыңыз.',
+  'Добавьте действие «Текст»:': '«Текст» әрекетін қосыңыз:',
+  ', переменные берите из «Входные данные команды».': ', айнымалыларды «Входные данные команды» бөлімінен алыңыз.',
+  'Добавьте «Скопировать в буфер обмена», затем «Открыть URL» со ссылкой на это приложение.': '«Скопировать в буфер обмена», содан кейін осы қолданба сілтемесімен «Открыть URL» қосыңыз.',
+  'Здесь нажмите в поле и выберите «Вставить».': 'Мұнда өрісті басып, «Вставить» таңдаңыз.',
+  'Срабатывает только на оплаты через Apple Pay. Переводы и оплаты в приложениях банков добавляйте выпиской.': 'Тек Apple Pay арқылы төлемдерде іске қосылады. Аударымдар мен банк қолданбасындағы төлемдерді үзінді көшірмемен қосыңыз.',
+  'Скопируйте текст пуша из шторки или истории уведомлений и вставьте сюда. Автоматическое чтение пушей возможно только в нативном приложении, в этом демо его нет.': 'Хабарлама мәтінін хабарландырулар тарихынан көшіріп, осында қойыңыз. Хабарламаларды автоматты оқу тек нативті қолданбада мүмкін, бұл демода жоқ.',
+  'Например, 177 162': 'Мысалы, 177 162',
+  'Операции шифруются на вашем устройстве (AES-256-GCM, ключ из пароля через PBKDF2, 310 000 итераций).': 'Операциялар құрылғыңызда шифрланады (AES-256-GCM, кілт құпиясөзден PBKDF2 арқылы, 310 000 итерация).',
+  'Все ваши карты и траты в одном месте': 'Барлық карталарыңыз бен шығындарыңыз бір жерде',
+  'Вход': 'Кіру', 'Регистрация': 'Тіркелу', 'Логин': 'Логин', 'Пароль': 'Құпиясөз', 'Войти': 'Кіру', 'Забыли пароль?': 'Құпиясөзді ұмыттыңыз ба?',
+  'Облачное хранилище недоступно в этом окне. Данные сохранятся только в этом браузере, тоже в зашифрованном виде.': 'Бұл терезеде бұлттық сақтау қолжетімсіз. Деректер тек осы браузерде, шифрланған түрде сақталады.',
+  'Подключаем хранилище…': 'Сақтау орнына қосылып жатырмыз…',
+  'Как защищены данные': 'Деректер қалай қорғалған',
+  'На сервер уходит только шифр и служебный журнал: тип события и время входа.': 'Серверге тек шифр мен қызметтік журнал жіберіледі: оқиға түрі және кіру уақыты.',
+  'Демо-версия для личного использования.': 'Жеке пайдалануға арналған демо-нұсқа.',
+  'Придумайте логин': 'Логин ойлап табыңыз', 'Пароль, минимум 10 символов': 'Құпиясөз, кемінде 10 таңба', 'Повторите пароль': 'Құпиясөзді қайталаңыз', 'Создать аккаунт': 'Аккаунт ашу',
+  'Пароль никуда не отправляется. Из него на вашем устройстве получается ключ, которым шифруются все операции. Без пароля или ключа восстановления данные не открыть никому, включая администратора.': 'Құпиясөз ешқайда жіберілмейді. Одан құрылғыңызда кілт жасалып, барлық операция сол кілтпен шифрланады. Құпиясөзсіз немесе қалпына келтіру кілтінсіз деректерді ешкім, тіпті әкімші де аша алмайды.',
+  'Восстановление доступа': 'Қолжетімділікті қалпына келтіру', 'Ключ восстановления': 'Қалпына келтіру кілті', 'Новый пароль, минимум 10 символов': 'Жаңа құпиясөз, кемінде 10 таңба', 'Восстановить доступ': 'Қалпына келтіру', 'Назад ко входу': 'Кіруге қайту',
+  'Если забудете пароль, войти можно только с этим ключом. Мы его не храним и восстановить не сможем.': 'Құпиясөзді ұмытсаңыз, тек осы кілтпен кіре аласыз. Біз оны сақтамаймыз және қалпына келтіре алмаймыз.',
+  'Скопировать': 'Көшіру', 'Я сохранил ключ в надёжном месте': 'Кілтті сенімді жерге сақтадым', 'Продолжить': 'Жалғастыру',
+  'Какие у вас карты?': 'Қандай карталарыңыз бар?', 'Отметьте банки, которыми пользуетесь. Карты появятся в кошельке, операции будут с их значками.': 'Қолданатын банктеріңізді белгілеңіз. Карталар әмиянда пайда болады, операциялар олардың белгісімен көрсетіледі.',
+  'Наличные': 'Қолма-қол ақша', 'Готово': 'Дайын', 'Пропустить': 'Өткізіп жіберу', 'Значки — наши условные обозначения, не логотипы банков.': 'Белгілер — біздің шартты белгілер, банк логотиптері емес.',
+  'Все счета': 'Барлық шоттар', 'Текущий баланс': 'Ағымдағы баланс', 'Указать баланс': 'Балансты енгізу', 'Доходы': 'Кірістер', 'Расходы': 'Шығыстар', 'Этот месяц': 'Осы ай', 'Сегодня': 'Бүгін', 'Вчера': 'Кеше', 'Период': 'Кезең',
+  'Добавьте первые операции': 'Алғашқы операцияларды қосыңыз', 'Загрузите выписку из банка, вставьте текст пуша о покупке или внесите трату вручную.': 'Банктен үзінді көшірме жүктеңіз, сатып алу туралы хабарламаны қойыңыз немесе шығынды қолмен енгізіңіз.',
+  'Добавить операции': 'Операция қосу', 'Посмотреть на примере данных': 'Мысал деректерімен көру', 'Пример помечается значком «пример», его можно удалить в профиле.': 'Мысал «мысал» белгісімен көрсетіледі, оны профильде өшіруге болады.',
+  'Обзор': 'Шолу', 'Аналитика': 'Талдау', 'ИИ': 'ЖИ', 'Профиль': 'Профиль', 'Уведомления': 'Хабарландырулар', 'Поиск': 'Іздеу', 'Мои карты': 'Менің карталарым', 'Скрыть баланс': 'Балансты жасыру', 'Показать баланс': 'Балансты көрсету',
+  'Предыдущий месяц': 'Алдыңғы ай', 'Следующий месяц': 'Келесі ай', 'Разделы': 'Бөлімдер', 'Добавить операцию': 'Операция қосу',
+  'Показан пример данных. Удалить его можно в профиле.': 'Мысал деректері көрсетілген. Оны профильде өшіруге болады.', 'Сейчас показан пример данных. Удалить его можно в профиле.': 'Қазір мысал деректері көрсетілген. Оны профильде өшіруге болады.',
+  'Категория': 'Санат', 'пример': 'мысал', 'Пример: зарплата': 'Мысал: жалақы', 'На свой счёт Halyk': 'Өз Halyk шотыма',
+  'Продукты': 'Азық-түлік', 'Кафе и рестораны': 'Кафе мен мейрамхана', 'Доставка еды': 'Тамақ жеткізу', 'Такси и транспорт': 'Такси және көлік', 'Покупки': 'Сатып алулар', 'Связь и подписки': 'Байланыс және жазылымдар', 'Коммуналка': 'Коммуналдық', 'Здоровье': 'Денсаулық', 'Развлечения': 'Ойын-сауық', 'Переводы': 'Аударымдар', 'Доход': 'Кіріс', 'Между своими счетами': 'Өз шоттарым арасында', 'Другое': 'Басқа', 'Остальное': 'Қалғаны', 'Кредиты и долги': 'Несие мен қарыз',
+  'Закрыть': 'Жабу', 'Из пуша': 'Хабарламадан', 'Выписка': 'Үзінді көшірме', 'Вручную': 'Қолмен',
+  'Вставьте текст уведомления банка или строку из «Команд»': 'Банк хабарламасының мәтінін немесе «Командалар» жолын қойыңыз',
+  'Сохранить операцию': 'Операцияны сақтау', 'Мгновенно с iPhone через «Команды»': 'iPhone-нан «Командалар» арқылы бірден',
+  'На Android': 'Android-та', 'PDF или CSV выписка из банка. Файл читается на вашем устройстве и никуда не загружается.': 'Банктен PDF немесе CSV үзінді көшірме. Файл құрылғыңызда оқылады, ешқайда жүктелмейді.',
+  'Карта или счёт этой выписки': 'Бұл үзінді көшірменің картасы немесе шоты', 'Карта': 'Карта', 'Файл выписки': 'Үзінді көшірме файлы',
+  'Расход': 'Шығыс', 'Сумма в тенге': 'Сома, теңге', 'Магазин или описание': 'Дүкен немесе сипаттама', 'Дата': 'Күні', '· если не выбрать, определим сами': '· таңдамасаңыз, өзіміз анықтаймыз', 'Сохранить': 'Сақтау',
+  'Счёт': 'Шот', 'Баланс не указан': 'Баланс көрсетілмеген', 'Управлять картами': 'Карталарды басқару', 'Все категории': 'Барлық санаттар', 'С': 'Бастап', 'По': 'Дейін', '7 дней': '7 күн', '30 дней': '30 күн', '90 дней': '90 күн', 'Показать': 'Көрсету',
+  'В демо уведомления показываются внутри приложения. Пуши на телефон потребуют нативного приложения.': 'Демода хабарландырулар қолданба ішінде көрсетіледі. Телефонға пуш үшін нативті қолданба керек.',
+  'Удалить операцию': 'Операцияны жою', 'Настройки карты': 'Карта баптаулары', 'Сбросить фильтры': 'Сүзгілерді тазарту', 'Текущий баланс, ₸': 'Ағымдағы баланс, ₸',
+  'Дальше баланс считается сам по операциям этой карты. Если в пуше есть «Доступно …», он обновится из пуша.': 'Әрі қарай баланс осы картаның операциялары бойынша өзі есептеледі. Хабарламада «Доступно …» болса, баланс сол бойынша жаңарады.',
+  'Название': 'Атауы', 'Последние 4 цифры': 'Соңғы 4 цифр', 'Все карты': 'Барлық карталар', 'Разница': 'Айырма', 'Покупок': 'Сатып алу', 'Куда ушли деньги': 'Ақша қайда кетті', 'Лимиты': 'Лимиттер',
+  'Траты нарастающим итогом': 'Жинақталған шығындар', 'Где тратите больше всего': 'Ең көп жұмсайтын жерлер', 'Доли категорий в расходах': 'Шығыстағы санаттар үлесі', 'Накопленные расходы по дням: этот месяц против прошлого': 'Күн сайынғы жинақталған шығын: осы ай мен өткен ай',
+  'Лимиты на месяц': 'Айлық лимиттер', 'Пустое поле значит без лимита. Предупредим на 80% и 100%.': 'Бос өріс лимитсіз дегенді білдіреді. 80% және 100%-да ескертеміз.', 'Сохранить лимиты': 'Лимиттерді сақтау',
+  'ИИ недоступен здесь': 'ЖИ мұнда қолжетімсіз', 'Открыть уведомления': 'Хабарландыруларды ашу', 'Подключаем ИИ…': 'ЖИ қосылып жатыр…',
+  'Откройте приложение в Claude, чтобы ИИ мог разбирать траты. Уведомления о лимитах, темпе трат и регулярных платежах работают и без него.': 'ЖИ шығындарды талдауы үшін қолданбаны Claude ішінде ашыңыз. Лимит, шығын қарқыны және тұрақты төлемдер туралы хабарландырулар онсыз да жұмыс істейді.',
+  'Разбор месяца': 'Айды талдау', 'Что именно отправим': 'Нақты не жіберіледі', 'Разобрать месяц': 'Айды талдау', 'Думаю…': 'Ойланып жатырмын…', 'Спросить про траты': 'Шығындар туралы сұрау', 'Спросить': 'Сұрау', 'Вопрос': 'Сұрақ',
+  'Например: сколько я трачу на такси в неделю?': 'Мысалы: аптасына таксиге қанша жұмсаймын?', 'С вопросом уходят операции выбранного месяца: дата, сумма, категория и магазин.': 'Сұрақпен бірге таңдалған айдың операциялары жіберіледі: күні, сомасы, санаты және дүкені.',
+  'Аккаунт': 'Аккаунт', 'Этот браузер · шифр': 'Осы браузер · шифр', 'Облако · шифр': 'Бұлт · шифр', 'Безопасность': 'Қауіпсіздік', 'Блокировать после бездействия': 'Әрекетсіз кейін бұғаттау', '1 мин': '1 мин', '5 мин': '5 мин', '15 мин': '15 мин', '30 мин': '30 мин',
+  'Сменить пароль': 'Құпиясөзді өзгерту', 'Новый ключ восстановления': 'Жаңа қалпына келтіру кілті', 'Что видит администратор': 'Әкімші не көреді', 'Журнал входов': 'Кіру журналы', 'Выйти': 'Шығу', 'Данные': 'Деректер',
+  'Лимиты по категориям': 'Санаттар бойынша лимиттер', 'Удалить пример данных': 'Мысал деректерін өшіру', 'Удалить аккаунт и все данные': 'Аккаунтты және барлық деректі өшіру', 'Убрать': 'Алып тастау', 'Добавить карту': 'Карта қосу', 'Другой банк': 'Басқа банк',
+  'Последние 4 цифры, необязательно': 'Соңғы 4 цифр, міндетті емес', 'Добавить': 'Қосу', 'Номер карты целиком не нужен и не хранится. Значки — наши условные обозначения, не логотипы банков.': 'Картаның толық нөмірі керек емес және сақталмайды. Белгілер — біздің шартты белгілер, банк логотиптері емес.',
+  'Текущий пароль': 'Ағымдағы құпиясөз', 'Сменить': 'Өзгерту', 'Старый ключ перестанет работать.': 'Ескі кілт жұмыс істемей қалады.', 'Создать ключ': 'Кілт жасау',
+  'Так ваши операции лежат на сервере. Без вашего пароля это просто набор символов:': 'Операцияларыңыз серверде осылай сақталады. Құпиясөзіңізсіз бұл жай таңбалар жиыны:',
+  'А вот что администратор видит в открытом виде: тип события и время.': 'Ал әкімші ашық түрде мынаны ғана көреді: оқиға түрі және уақыт.',
+  'Сумм, магазинов, карт и пароля в открытом виде на сервере нет. Ключ существует только в памяти вашего устройства, пока приложение разблокировано.': 'Серверде сомалар, дүкендер, карталар мен құпиясөз ашық түрде жоқ. Кілт қолданба бұғатталмаған кезде ғана құрылғыңыздың жадында болады.',
+  'Аккаунт создан': 'Аккаунт ашылды', 'Вход': 'Кіру', 'Неверный пароль': 'Құпиясөз қате', 'Автоблокировка': 'Автобұғаттау', 'Импорт выписки': 'Үзінді көшірме импорты', 'Смена пароля': 'Құпиясөз өзгертілді', 'Запрос к ИИ': 'ЖИ-ге сұрау', 'Записей нет': 'Жазба жоқ',
+  'Удалить аккаунт': 'Аккаунтты өшіру', 'Все операции, лимиты и журнал будут удалены без возможности восстановления.': 'Барлық операция, лимит және журнал қайтарусыз өшіріледі.', 'Удалить навсегда': 'Біржола өшіру',
+  'Проверяем…': 'Тексеріп жатырмыз…', 'Создаём ключи…': 'Кілттер жасалып жатыр…', 'Неверный логин или пароль.': 'Логин немесе құпиясөз қате.', 'Пароли не совпадают.': 'Құпиясөздер сәйкес емес.',
+  'Сохранено': 'Сақталды', 'Удалено': 'Өшірілді', 'Категория обновлена': 'Санат жаңартылды', 'Лимиты сохранены': 'Лимиттер сақталды', 'Загружен пример данных': 'Мысал деректері жүктелді', 'Пример удалён': 'Мысал өшірілді', 'Карта добавлена': 'Карта қосылды', 'Скопировано': 'Көшірілді', 'Введите сумму': 'Соманы енгізіңіз', 'Такая операция уже есть': 'Мұндай операция бар',
+  'Проверьте сумму и магазин. Категорию можно поменять после сохранения.': 'Соманы және дүкенді тексеріңіз. Санатты сақтағаннан кейін өзгертуге болады.',
+  'Ничего не найдено.': 'Ештеңе табылмады.', 'Импортировать': 'Импорттау', 'Читаем файл…': 'Файлды оқып жатырмыз…', 'Язык': 'Тіл',
+  'Пока всё спокойно. Здесь появятся лимиты, необычно крупные траты, рост темпа расходов и скорые регулярные платежи.': 'Әзірге бәрі тыныш. Мұнда лимиттер, әдеттен тыс ірі шығындар, шығын қарқынының өсуі және жақын тұрақты төлемдер шығады.',
+  'Темп трат выше прошлого месяца': 'Шығын қарқыны өткен айдан жоғары', 'Заблокировано после бездействия': 'Әрекетсіздіктен кейін бұғатталды'
+};
+const KK_RX = [
+  [/^Около (\d+) числа$/, (m, a) => `Шамамен ${a}-күні`],
+  [/^(.+) в месяц$/, (m, a) => `айына ${a}`],
+  [/^Текущий баланс · по (\d+) из (\d+) карт$/, (m, a, b) => `Ағымдағы баланс · ${b} картаның ${a}-і бойынша`],
+  [/^(\d+) (?:участник|участника|участников)$/, (m, a) => `${a} қатысушы`],
+  [/^Осталось (.+)$/, (m, a) => `Қалды ${a}`],
+  [/^(.+): (.+) (сегодня|завтра|через (\d+) \S+|просрочено на (\d+) \S+)$/, (m, a, b, c, d, e) => `${a}: ${b} ${c === 'сегодня' ? 'бүгін' : c === 'завтра' ? 'ертең' : d ? d + ' күннен кейін' : e + ' күн кешікті'}`],
+  [/^Платёж по «(.+)» (сегодня|завтра|через (\d+) \S+|просрочено на (\d+) \S+)$/, (m, a, c, d, e) => `«${a}» төлемі ${c === 'сегодня' ? 'бүгін' : c === 'завтра' ? 'ертең' : d ? d + ' күннен кейін' : e + ' күн кешікті'}`],
+  [/^(.+), осталось (.+)\.$/, (m, a, b) => `${a}, қалды ${b}.`],
+  [/^Сумма (.+)\.$/, (m, a) => `Сома ${a}.`],
+  [/^Операции шифруются на вашем устройстве \(AES-256-GCM, ключ из пароля через PBKDF2, (.+) итераций\)\.$/, (m, a) => `Операциялар құрылғыңызда шифрланады (AES-256-GCM, кілт құпиясөзден PBKDF2 арқылы, ${a} итерация).`],
+  [/^Потрачено с 1 по (\d+) (\S+)(.*)$/, (m, a, b, c) => `1–${a} ${b} аралығында жұмсалды${c}`],
+  [/^Потрачено за (\S+)(.*)$/, (m, a, c) => `${a[0].toUpperCase() + a.slice(1)} айында жұмсалды${c}`],
+  [/^к (.+)$/, (m, a) => `${a} кезеңімен салыстырғанда`],
+  [/^· (.+) в день$/, (m, a) => `· күніне ${a}`],
+  [/^(\d+) (?:категория|категории|категорий)$/, (m, a) => `${a} санат`],
+  [/^· (\d+) (?:раз|раза)$/, (m, a) => `· ${a} рет`],
+  [/^(\d+) (?:операция|операции|операций) за (\d+) (?:месяц|месяца|месяцев)$/, (m, a, b) => `${b} айда ${a} операция`],
+  [/^(\d+) (?:карта|карты|карт)$/, (m, a) => `${a} карта`],
+  [/^· прошлый месяц (.+), сейчас (.+)$/, (m, a, b) => `· өткен ай ${a}, қазір ${b}`],
+  [/^Введите логин «(.+)», чтобы подтвердить$/, (m, a) => `Растау үшін «${a}» логинін енгізіңіз`],
+  [/^Запомнить для «(.+)»$/, (m, a) => `«${a}» үшін есте сақтау`],
+  [/^Крупная трата: (.+)$/, (m, a) => `Ірі шығын: ${a}`],
+  [/^(.+) — Сегодня$/, (m, a) => `${a} — Бүгін`], [/^(.+) — Вчера$/, (m, a) => `${a} — Кеше`],
+  [/^Сегодня, (.+)$/, (m, a) => `Бүгін, ${a}`], [/^Вчера, (.+)$/, (m, a) => `Кеше, ${a}`],
+  [/^За (.+) операций нет\.$/, (m, a) => `${a} бойынша операция жоқ.`],
+  [/^из (.+)$/, (m, a) => `лимит ${a}`],
+  [/^Сохранено: (.+)$/, (m, a) => `Сақталды: ${a}`],
+  [/^Добавлено (\d+), пропущено повторов (\d+)$/, (m, a, b) => `${a} қосылды, ${b} қайталау өткізілді`],
+  [/^Лимит «(.+)» превышен$/, (m, a) => `«${KK[a] || a}» лимиті асып кетті`],
+  [/^«(.+)»: (\d+)% лимита$/, (m, a, b) => `«${KK[a] || a}»: лимиттің ${b}%`],
+  [/^Осталось (.+) до конца месяца\.$/, (m, a) => `Ай соңына дейін ${a} қалды.`],
+  [/^Потрачено (.+) из (.+)\.$/, (m, a, b) => `${b} ішінен ${a} жұмсалды.`],
+  [/^По текущему темпу выйдет около (.+) против (.+) в прошлом месяце\.$/, (m, a, b) => `Осы қарқынмен шамамен ${a} болады, өткен айда ${b} болған.`],
+  [/^(.+) Обычная покупка у вас около (.+)\.$/, (m, a, b) => `${a} Әдетте бір сатып алуыңыз шамамен ${b}.`],
+  [/^Скоро спишется (.+)$/, (m, a) => `Жақында ${a} төлемі шегеріледі`],
+  [/^Около (\d+) числа, примерно (.+)\. Похоже на регулярный платёж\.$/, (m, a, b) => `Шамамен ${a}-күні, ${b} шамасында. Тұрақты төлемге ұқсайды.`],
+  [/^Найдено (\d+) (?:операция|операции|операций) с (.+) по (.+)\. Расходы (.+?)\.(.*)$/, (m, a, b, c, d, e) => `${b} – ${c} аралығында ${a} операция табылды. Шығыс ${d}.${e.replace(' Не распознано строк:', ' Танылмаған жолдар:')}`]
+];
+function trText(s) {
+  if (LANG !== 'kk' || !s) return s;
+  const t = s.trim(); if (!t) return s;
+  let out = KK[t];
+  if (out === undefined) { for (const [re, fn] of KK_RX) { if (re.test(t)) { out = t.replace(re, fn); break; } } }
+  if (out === undefined) out = t;
+  out = out.replace(/(\d) тыс(?=\s|$)/g, '$1 мың');
+  return out === t ? s : s.replace(t, out);
+}
+function translateTree(root) {
+  if (LANG !== 'kk' || !root) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let n; const list = [];
+  while ((n = w.nextNode())) { if (/[а-яё]/i.test(n.nodeValue) && !n.parentElement.closest('script,style,pre,.ai-out,textarea')) list.push(n); }
+  list.forEach(n => { const v = trText(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; });
+  root.querySelectorAll?.('[placeholder],[aria-label]').forEach(e => ['placeholder', 'aria-label'].forEach(a => { const v = e.getAttribute(a); if (v && /[а-яё]/i.test(v)) { const r = trText(v); if (r !== v) e.setAttribute(a, r); } }));
+}
+let trObs = null;
+function startTranslator() {
+  if (trObs) return;
+  trObs = new MutationObserver(muts => { if (LANG !== 'kk') return; for (const m of muts) m.addedNodes.forEach(nd => { if (nd.nodeType === 1) translateTree(nd); else if (nd.nodeType === 3 && nd.parentElement) translateTree(nd.parentElement); }); });
+  trObs.observe(document.body, {childList: true, subtree: true});
+}
+function setLang(l) { LANG = l; try { localStorage.setItem('aksha:lang', l); } catch {} applyLangArrays(); render(); }
+const langSwitch = () => `<div class="langsw" role="group" aria-label="Язык"><button data-lang="kk" aria-pressed="${LANG === 'kk'}">ҚАЗ</button><button data-lang="ru" aria-pressed="${LANG === 'ru'}">РУС</button></div>`;
+
+function toast(msg) { const r = $('#toastRoot'); r.innerHTML = `<div class="toast">${esc(trText(msg))}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => r.innerHTML = '', 2600); }
+
+// ───────────────────────── crypto (all on device) ─────────────────────────
+const KDF_ITER = 310000;
+async function kek(secret, salt) {
+  const base = await crypto.subtle.importKey('raw', te.encode(secret), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name: 'PBKDF2', salt, iterations: KDF_ITER, hash: 'SHA-256'}, base, {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+}
+async function encBytes(key, bytes) { const iv = rand(12); const ct = await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, bytes); return {iv: b64(iv), ct: b64(ct)}; }
+async function decBytes(key, box) { return new Uint8Array(await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(box.iv)}, key, unb64(box.ct))); }
+const encJSON = (key, obj) => encBytes(key, te.encode(JSON.stringify(obj)));
+const decJSON = async (key, box) => JSON.parse(td.decode(await decBytes(key, box)));
+async function wrapVault(rawVault, secret) { const salt = rand(16); const k = await kek(secret, salt); const box = await encBytes(k, rawVault); return {salt: b64(salt), ...box}; }
+async function unwrapVault(w, secret) { const k = await kek(secret, unb64(w.salt)); return decBytes(k, w); }
+const importVault = raw => crypto.subtle.importKey('raw', raw, {name: 'AES-GCM'}, false, ['encrypt', 'decrypt']);
+function makeRecoveryKey() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const b = rand(20); let s = ''; for (const x of b) s += A[x % 32]; return s.match(/.{4}/g).join('-'); }
+const normRec = s => s.toUpperCase().replace(/[^A-Z0-9]/g, '').match(/.{1,4}/g)?.join('-') ?? '';
+
+// ───────────────────────── storage backends ─────────────────────────
+// Server side only ever receives ciphertext + event log (type, time). Never amounts, merchants or keys.
+const Store = {
+  kind: 'pending', db: null, uid: null,
+  async init() {
+    try {
+      const [db, user] = await Promise.all([window.claude?.use?.('db') ?? null, window.claude?.use?.('user') ?? null]);
+      const uid = user ? await user.id() : null;
+      if (db && uid) { this.db = db; this.uid = uid; this.kind = 'cloud'; return; }
+    } catch (e) { /* fall through */ }
+    this.kind = 'local';
+  },
+  ref(id) { return this.db.collection('data/users/' + this.uid).doc(id); },
+  lk(...p) { return 'aksha:' + p.join(':'); },
+  lget(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } },
+  lset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+  ldel(k) { try { localStorage.removeItem(k); } catch {} },
+  async getAcct(id) {
+    if (this.kind === 'cloud') { const s = await this.ref(id).get(); return s.exists ? s.data() : null; }
+    return this.lget(this.lk(id, 'acct'));
+  },
+  async setAcct(id, obj) {
+    if (this.kind === 'cloud') return this.ref(id).set(obj);
+    if (!this.lset(this.lk(id, 'acct'), obj)) throw new Error('local');
+  },
+  async listMonths(id) {
+    if (this.kind === 'cloud') { const q = await this.ref(id).collection('months').get(); return q.docs.map(d => ({ym: d.id, box: d.data()})); }
+    const idx = this.lget(this.lk(id, 'months')) || [];
+    return idx.map(ym => ({ym, box: this.lget(this.lk(id, 'm', ym))})).filter(x => x.box);
+  },
+  async setMonth(id, ym, box) {
+    if (this.kind === 'cloud') return this.ref(id).collection('months').doc(ym).set(box);
+    const idx = new Set(this.lget(this.lk(id, 'months')) || []); idx.add(ym);
+    if (!this.lset(this.lk(id, 'm', ym), box) || !this.lset(this.lk(id, 'months'), [...idx])) throw new Error('local');
+  },
+  async delMonth(id, ym) {
+    if (this.kind === 'cloud') return this.ref(id).collection('months').doc(ym).delete();
+    const idx = new Set(this.lget(this.lk(id, 'months')) || []); idx.delete(ym); this.lset(this.lk(id, 'months'), [...idx]); this.ldel(this.lk(id, 'm', ym));
+  },
+  async log(id, e, extra = {}) {
+    const row = {e, at: new Date().toISOString(), ...extra};
+    try {
+      if (this.kind === 'cloud') await this.ref(id).collection('logs').add(row);
+      else { const L = this.lget(this.lk(id, 'logs')) || []; L.push(row); this.lset(this.lk(id, 'logs'), L.slice(-200)); }
+    } catch {}
+  },
+  async logs(id) {
+    try {
+      if (this.kind === 'cloud') { const q = await this.ref(id).collection('logs').orderBy('at', 'desc').limit(30).get(); return q.docs.map(d => d.data()); }
+      return (this.lget(this.lk(id, 'logs')) || []).slice().reverse().slice(0, 30);
+    } catch { return []; }
+  },
+  async wipe(id) {
+    if (this.kind === 'cloud') {
+      const r = this.ref(id);
+      for (const c of ['months', 'logs']) { const q = await r.collection(c).get(); for (const d of q.docs) await r.collection(c).doc(d.id).delete(); }
+      await r.delete(); return;
+    }
+    const idx = this.lget(this.lk(id, 'months')) || []; idx.forEach(ym => this.ldel(this.lk(id, 'm', ym)));
+    ['months', 'logs', 'acct'].forEach(k => this.ldel(this.lk(id, k)));
+  }
+};
+
+// ───────────────────────── categories ─────────────────────────
+const CATS = ['Продукты','Кафе и рестораны','Доставка еды','Такси и транспорт','Покупки','Связь и подписки','Коммуналка','Здоровье','Развлечения','Кредиты и долги','Переводы','Наличные','Доход','Между своими счетами','Другое'];
+const NOT_SPEND = new Set(['Доход', 'Между своими счетами']);
+const RULES = [
+  [/magnum|small|galmart|anvar|арбуз|arbuz|metro|ramstore|супермаркет|продукт|интерфуд|toimart/i, 'Продукты'],
+  [/wolt|glovo|yandex\s?eda|яндекс\s?еда|chocofood|доставк/i, 'Доставка еды'],
+  [/yandex\s?go|яндекс\s?go|yandex\.?taxi|такси|uber|indrive|индрайв|onay|онай|bolt|азс|helios|sinooil|gazprom|qazaq oil|parking|парков/i, 'Такси и транспорт'],
+  [/coffee|кофе|cafe|кафе|starbucks|kfc|burger|bahandi|rest|ресторан|pizza|пицц|sushi|суши|bar\b|бар\b/i, 'Кафе и рестораны'],
+  [/beeline|kcell|activ|tele2|altel|kazakhtelecom|казахтелеком|apple\.com|icloud|netflix|spotify|youtube|yandex\s?plus|яндекс\s?плюс|google\s|chatgpt|openai|anthropic|claude/i, 'Связь и подписки'],
+  [/алсеко|alseco|ерц|erc|ivc|ивц|коммунал|осв|ксж|кск/i, 'Коммуналка'],
+  [/аптек|apteka|europharma|biosfera|invitro|инвитро|olymp|олимп|клиник|clinic|стоматолог|dent/i, 'Здоровье'],
+  [/kino|кино|chaplin|kinopark|cinema|ticketon|steam|playstation/i, 'Развлечения'],
+  [/kaspi\s?магазин|kaspi\.kz\s?shop|wildberries|ozon|lamoda|technodom|sulpak|mechta|мечта|zara|h&m|lc waikiki|ikea|leroy|магазин/i, 'Покупки'],
+  [/снятие|банкомат|atm|наличн/i, 'Наличные'],
+];
+function guessCat(text, type, amount, rules) {
+  const key = (text || '').trim().toLowerCase();
+  if (rules && rules[key]) return rules[key];
+  if (/между своими|на свой счет|на свою карту|своими счетами/i.test(type + ' ' + text)) return 'Между своими счетами';
+  if (amount > 0) return /возврат|refund/i.test(type + ' ' + text) ? 'Покупки' : 'Доход';
+  if (/снятие|наличн/i.test(type)) return 'Наличные';
+  for (const [re, c] of RULES) if (re.test(text)) return c;
+  if (/перевод/i.test(type)) return 'Переводы';
+  return 'Другое';
+}
+// ───────────────────────── visual identity: categories & banks ─────────────────────────
+// Own badges (bank initials + name), not the banks' logos.
+const IC = {
+  cart: 'M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H6.2M9 20h.01M17 20h.01',
+  cup: 'M4 9h12v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M12 3v3',
+  box: 'M3 8l9-5 9 5v8l-9 5-9-5zM3 8l9 5 9-5M12 13v8',
+  car: 'M5 16l1.5-5.2A2 2 0 0 1 8.4 9.4h7.2a2 2 0 0 1 1.9 1.4L19 16M4 16h16v3H4zM7 19v1.5M17 19v1.5M7.5 13.5h.01M16.5 13.5h.01',
+  bag: 'M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2',
+  phone: 'M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM11 18h2',
+  home: 'M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM10 20v-5h4v5',
+  heart: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+  ticket: 'M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4zM14 7v10',
+  send: 'M4 12l16-7-7 16-2-7z',
+  cash: 'M3 7h18v10H3zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 10h.01M18 14h.01',
+  inc: 'M12 19V5M6 11l6-6 6 6',
+  swap: 'M7 7h12l-3-3M17 17H5l3 3',
+  dots: 'M6 12h.01M12 12h.01M18 12h.01',
+  plus: 'M12 5v14M5 12h14',
+  bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0',
+  users: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-4 3-6 7-6s7 2 7 6M16 3.5a4 4 0 0 1 0 7.5M18 15c2.4.6 4 2.6 4 6',
+  user1: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1.5-4 4.5-6 8-6s6.5 2 8 6',
+  bank: 'M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18',
+  gear: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+  eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  eyeoff: 'M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.700 9.700 0 0 0 4.4-1M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  arrdl: 'M17 7L7 17M7 9v8h8', arrur: 'M7 17L17 7M9 7h8v8',
+  chevl: 'M15 18l-6-6 6-6', chevr: 'M9 18l6-6-6-6',
+  wallet: 'M3 7a2 2 0 0 1 2-2h12v4M3 7v10a2 2 0 0 0 2 2h14V9H5a2 2 0 0 1-2-2zM16 14h.01',
+  filter: 'M4 6h16M7 12h10M10 18h4', x: 'M6 6l12 12M18 6L6 18', check: 'M5 12l5 5L20 7',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+  chart: 'M5 20V10M12 20V4M19 20v-7'
+};
+const CAT_META = {
+  'Продукты': ['#1E9E74', 'cart'], 'Кафе и рестораны': ['#E0782B', 'cup'], 'Доставка еды': ['#C2459A', 'box'],
+  'Такси и транспорт': ['#2F6FED', 'car'], 'Покупки': ['#7A5AF8', 'bag'], 'Связь и подписки': ['#2C9AB7', 'phone'],
+  'Коммуналка': ['#B8860B', 'home'], 'Здоровье': ['#D64545', 'heart'], 'Развлечения': ['#9C4DCC', 'ticket'],
+  'Кредиты и долги': ['#A0522D', 'bank'], 'Переводы': ['#5B7083', 'send'], 'Наличные': ['#6B8E23', 'cash'], 'Доход': ['#1D8A55', 'inc'],
+  'Между своими счетами': ['#7C8A85', 'swap'], 'Другое': ['#7C8A85', 'dots']
+};
+const catColor = c => (CAT_META[c] || CAT_META['Другое'])[0];
+const svgIcon = (k, size = 20, color = 'currentColor') => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${IC[k] || IC.dots}"/></svg>`;
+const catIcon = (c, size = 40) => { const [col, ic] = CAT_META[c] || CAT_META['Другое']; return `<span class="cico" style="width:${size}px;height:${size}px;background:${col}1f;color:${col}">${svgIcon(ic, Math.round(size * .5), col)}</span>`; };
+const BANKS = [
+  {k: 'kaspi', n: 'Kaspi', mono: 'Ka', c1: '#3A3F8F', c2: '#6A5ACD', re: /kaspi|каспи/i, def: 'Kaspi Gold'},
+  {k: 'halyk', n: 'Halyk', mono: 'Hb', c1: '#155E63', c2: '#2A9D8F', re: /halyk|халык|homebank/i, def: 'Halyk'},
+  {k: 'freedom', n: 'Freedom', mono: 'Fr', c1: '#2D4A22', c2: '#5C8A3A', re: /freedom|фридом/i, def: 'Freedom'},
+  {k: 'jusan', n: 'Jusan', mono: 'Ju', c1: '#8A4B12', c2: '#C77D2E', re: /jusan|жусан/i, def: 'Jusan'},
+  {k: 'bcc', n: 'BCC', mono: 'BC', c1: '#24395C', c2: '#3E6496', re: /\bbcc\b|центркредит|centercredit/i, def: 'BCC'},
+  {k: 'forte', n: 'Forte', mono: 'Fo', c1: '#6B1F4E', c2: '#A23B7A', re: /forte|форте/i, def: 'Forte'},
+  {k: 'bereke', n: 'Bereke', mono: 'Be', c1: '#1F5C46', c2: '#3D8B6C', re: /bereke|береке/i, def: 'Bereke'},
+  {k: 'homecredit', n: 'Home Credit', mono: 'HC', c1: '#7A2323', c2: '#B04545', re: /home\s?credit|хоум/i, def: 'Home Credit'},
+  {k: 'rbk', n: 'Bank RBK', mono: 'RB', c1: '#2B2F45', c2: '#4C5578', re: /\brbk\b|рбк/i, def: 'Bank RBK'},
+  {k: 'altyn', n: 'Altyn', mono: 'Al', c1: '#6E5310', c2: '#A9862A', re: /altyn|алтын/i, def: 'Altyn'},
+  {k: 'eurasian', n: 'Eurasian', mono: 'Eu', c1: '#1E4C7A', c2: '#3B7BB8', re: /eurasian|евразийск/i, def: 'Eurasian'},
+  {k: 'otbasy', n: 'Otbasy', mono: 'Ot', c1: '#3E5A1E', c2: '#6E8F35', re: /otbasy|отбасы/i, def: 'Otbasy'},
+  {k: 'cash', n: 'Наличные', mono: '₸', c1: '#4A5550', c2: '#7C8A85', re: /налич|cash/i, def: 'Наличные'},
+  {k: 'other', n: 'Другой банк', mono: '··', c1: '#3F4A46', c2: '#69766F', re: /$^/, def: 'Карта'}
+];
+const bankByKey = k => BANKS.find(b => b.k === k) || BANKS[BANKS.length - 1];
+const guessBank = s => (BANKS.find(b => b.re.test(s || '')) || BANKS[BANKS.length - 1]);
+const cardsList = () => S.settings.cards || [];
+const bankOfCard = label => { const c = cardsList().find(x => x.name === label); return c ? bankByKey(c.bank) : guessBank(label); };
+const bankBadge = (b, size = 18) => `<span class="bbadge" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .42)}px;background:linear-gradient(135deg,${b.c1},${b.c2})" aria-hidden="true">${esc(b.mono)}</span>`;
+function ensureCard(label) {
+  if (!label) return;
+  if (!cardsList().some(c => c.name === label)) { (S.settings.cards ||= []).push({id: uid8(), bank: guessBank(label).k, name: label}); markSettings(); }
+}
+function donut(entries, total) {
+  const R = 54, SW = 16, C = 2 * Math.PI * R; let off = 0;
+  const segs = entries.map(([c, v]) => { const len = total ? v / total * C : 0; const s = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${c === 'Остальное' ? 'var(--line)' : catColor(c)}" stroke-width="${SW}" stroke-dasharray="${Math.max(0, len - 2).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 70 70)"/>`; off += len; return s; }).join('');
+  return `<svg viewBox="0 0 140 140" width="140" height="140" role="img" aria-label="Доли категорий в расходах"><circle r="${R}" cx="70" cy="70" fill="none" stroke="var(--sunk)" stroke-width="${SW}"/>${segs}</svg>`;
+}
+
+const initials = s => (s || '?').replace(/[^\p{L}\p{N} ]/gu, '').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '₸';
+
+// ───────────────────────── parsers ─────────────────────────
+const AMT_RE = /([+\-−–]?\s?\d{1,3}(?:[\s  ]\d{3})*(?:[.,]\d{1,2})?|[+\-−–]?\s?\d+(?:[.,]\d{1,2})?)\s?(₸|тг\.?|kzt|тенге)/i;
+const toNum = s => Number(String(s).replace(/[\s  ]/g, '').replace(/[−–]/g, '-').replace(',', '.'));
+const IN_WORDS = /пополнени|поступлени|зачислени|перевод от|получен|входящ|возврат|refund|кэшбэк|cashback|зарплат/i;
+const OUT_WORDS = /покупк|оплат|списани|снятие|перевод|платеж|платёж|purchase|payment/i;
+
+// Parse a bank push / SMS / Shortcuts line into a transaction draft.
+function parsePush(text, rules) {
+  const t = text.replace(/\s+/g, ' ').trim();
+  const m = t.match(AMT_RE);
+  if (!m) return null;
+  let n = toNum(m[1]);
+  const signed = /^[+\-−–]/.test(m[1].trim());
+  if (!signed) n = (IN_WORDS.test(t) && !/^(покупк|оплат)/i.test(t)) ? Math.abs(n) : -Math.abs(n);
+  const typeM = t.match(/(покупка|оплата|списание|снятие наличных|снятие|пополнение|поступление|зачисление|перевод(?: от| на)?|возврат)/i);
+  const type = typeM ? typeM[1] : '';
+  let after = t.slice(t.indexOf(m[0]) + m[0].length);
+  let before = t.slice(0, t.indexOf(m[0]));
+  after = after.replace(/^[\s.,:;–—-]+/, '').split(/(?:доступно|остаток|баланс|available|balance|\.\s)/i)[0];
+  after = after.replace(/^(в|у|от|на|at|in)\s+/i, '').trim();
+  before = before.replace(/(покупка|оплата|списание|снятие наличных|снятие|пополнение|поступление|зачисление|перевод(?: от| на)?|возврат|kaspi gold|kaspi|halyk|карта|card|\*\d{4}|[:•·|])/gi, ' ').replace(/\s+/g, ' ').trim();
+  let merchant = (after || before || type || 'Операция').replace(/\b([01]\d|2[0-3]):[0-5]\d\b/g, '').replace(/\d{2}\.\d{2}\.\d{2,4}/g, '').replace(/\s+/g, ' ').trim().replace(/[,;.]+$/, '').slice(0, 60).trim();
+  const cardM = t.match(/\*{1,4}\s?(\d{4})/) || t.match(/(kaspi gold|kaspi red|halyk|freedom|jusan|bcc|forte|bereke|home credit|altyn|rbk)/i);
+  const card = cardM ? (cardM[1].match(/^\d{4}$/) ? '•' + cardM[1] : cap(cardM[1])) : '';
+  const dateM = t.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+  let d = todayISO();
+  if (dateM) { const y = dateM[3].length === 2 ? '20' + dateM[3] : dateM[3]; d = `${y}-${dateM[2]}-${dateM[1]}`; }
+  const timeM = t.match(/\b([01]\d|2[0-3]):([0-5]\d)\b/);
+  const now = new Date();
+  const balM = t.match(/(?:доступно|остаток|баланс)[:\s]*(\d{1,3}(?:[\s\u00a0\u202f]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s?(?:₸|тг|kzt)/i);
+  return {id: uid8(), d, tm: timeM ? `${timeM[1]}:${timeM[2]}` : `${pad(now.getHours())}:${pad(now.getMinutes())}`, a: n, m: merchant, c: guessCat(merchant, type, n, rules), card, src: 'push', balAfter: balM ? toNum(balM[1]) : null};
+}
+const cap = s => s.replace(/\b\p{L}/gu, c => c.toUpperCase());
+
+// Parse statement text lines (PDF text or CSV) into transactions.
+const OPS = /^(покупк[аи]|пополнени[ея]|переводы?|снятие|разное|оплата|платеж|платёж|возврат|списание|зачисление|поступление)(?=\s|$)/i;
+function parseStatementLines(lines, rules, cardName) {
+  const out = []; let skipped = 0;
+  const lineRe = /^(\d{2})\.(\d{2})\.(\d{2}|\d{4})\s+([+\-−–])?\s*(\d{1,3}(?:[\s  ]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:₸|kzt|тг)\s+(.+)$/i;
+  for (const raw of lines) {
+    const l = raw.replace(/\s+/g, ' ').trim();
+    if (!/^\d{2}\.\d{2}\.\d{2}/.test(l)) continue;
+    const m = l.match(lineRe);
+    if (!m) { skipped++; continue; }
+    const y = m[3].length === 2 ? '20' + m[3] : m[3];
+    let rest = m[6].trim(); let type = '';
+    const om = rest.match(OPS); if (om) { type = om[1]; rest = rest.slice(om[0].length).trim(); }
+    let n = toNum(m[5]);
+    if (m[4]) n = /[-−–]/.test(m[4]) ? -Math.abs(n) : Math.abs(n);
+    else n = /пополнени|зачислени|поступлени|возврат/i.test(type) ? Math.abs(n) : -Math.abs(n);
+    const merchant = (rest || type || 'Операция').slice(0, 60);
+    out.push({id: uid8(), d: `${y}-${m[2]}-${m[1]}`, tm: '', a: n, m: merchant, c: guessCat(merchant, type, n, rules), card: cardName || '', src: 'statement'});
+  }
+  return {rows: out, skipped};
+}
+function parseCSV(text, rules, cardName) {
+  const lines = text.split(/\r?\n/).filter(Boolean); if (!lines.length) return {rows: [], skipped: 0};
+  const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
+  const split = l => { const r = []; let cur = '', q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === sep && !q) { r.push(cur); cur = ''; } else cur += ch; } r.push(cur); return r.map(s => s.trim()); };
+  const out = []; let skipped = 0;
+  for (const l of lines) {
+    const cells = split(l);
+    const di = cells.findIndex(c => /^\d{2}[./]\d{2}[./]\d{2,4}|^\d{4}-\d{2}-\d{2}/.test(c));
+    const ai = cells.findIndex((c, i) => i !== di && /^[+\-−–]?\s?[\d\s ]+([.,]\d{1,2})?\s?(₸|kzt|тг)?$/i.test(c) && /\d/.test(c));
+    if (di < 0 || ai < 0) { skipped++; continue; }
+    let d = cells[di]; let iso;
+    if (/^\d{4}-/.test(d)) iso = d.slice(0, 10); else { const [dd, mm, yy] = d.split(/[./]/); iso = `${yy.length === 2 ? '20' + yy : yy.slice(0, 4)}-${mm}-${dd}`; }
+    const n = toNum(cells[ai].replace(/(₸|kzt|тг)/i, ''));
+    const text = cells.filter((c, i) => i !== di && i !== ai && /\p{L}/u.test(c)).sort((a, b) => b.length - a.length)[0] || 'Операция';
+    if (!isFinite(n) || n === 0) { skipped++; continue; }
+    out.push({id: uid8(), d: iso, tm: '', a: n, m: text.slice(0, 60), c: guessCat(text, '', n, rules), card: cardName || '', src: 'statement'});
+  }
+  return {rows: out, skipped};
+}
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); }); }
+async function pdfLines(file) {
+  if (!window.pdfjsLib) {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const doc = await window.pdfjsLib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
+  const lines = [];
+  for (let p = 1; p <= doc.numPages; p++) {
+    const page = await doc.getPage(p); const tc = await page.getTextContent();
+    const rows = new Map();
+    for (const it of tc.items) { if (!it.str || !it.str.trim()) continue; const y = Math.round(it.transform[5] / 2); if (!rows.has(y)) rows.set(y, []); rows.get(y).push([it.transform[4], it.str]); }
+    [...rows.entries()].sort((a, b) => b[0] - a[0]).forEach(([, items]) => lines.push(items.sort((a, b) => a[0] - b[0]).map(x => x[1]).join(' ')));
+  }
+  return lines;
+}
+
+// ───────────────────────── example data (clearly marked) ─────────────────────────
+function exampleTxs() {
+  let seed = 7; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const P = [['Magnum', 'Продукты', 3500, 18000, 9], ['Small', 'Продукты', 900, 4500, 7], ['Yandex Go', 'Такси и транспорт', 900, 3200, 10], ['Wolt', 'Доставка еды', 3500, 9000, 4], ['Coffee Boom', 'Кафе и рестораны', 1200, 2600, 6], ['Bahandi', 'Кафе и рестораны', 2500, 6500, 3], ['Kaspi Магазин', 'Покупки', 5000, 45000, 2], ['Europharma', 'Здоровье', 1500, 9000, 1], ['Kinopark', 'Развлечения', 2800, 7000, 1]];
+  const out = []; const now = new Date(); const cur = todayISO();
+  for (let k = 2; k >= 0; k--) {
+    const ym = ymShift(ymOf(cur), -k); const last = k === 0 ? now.getDate() : daysIn(ym);
+    const add = (day, a, m, c, card) => { if (day > last) return; let h = 8 + Math.floor(r()*13); if (k === 0 && day === last) h = Math.min(h, Math.max(0, now.getHours() - 1)); out.push({id: uid8(), d: `${ym}-${pad(day)}`, tm: `${pad(h)}:${pad(Math.floor(r()*60))}`, a, m, c, card, src: 'example', ex: true}); };
+    add(5, 520000, 'Пример: зарплата', 'Доход', 'Kaspi Gold');
+    add(10, -14990, 'Beeline', 'Связь и подписки', 'Kaspi Gold');
+    add(12, -4490, 'Yandex Plus', 'Связь и подписки', 'Halyk');
+    add(15, -21800, 'Алсеко', 'Коммуналка', 'Kaspi Gold');
+    add(20, -100000, 'На свой счёт Halyk', 'Между своими счетами', 'Kaspi Gold');
+    add(20, 100000, 'С Kaspi Gold', 'Между своими счетами', 'Halyk');
+    for (const [m, c, lo, hi, per] of P) {
+      const cnt = Math.max(0, Math.round(per * (0.8 + r() * 0.5)));
+      for (let i = 0; i < cnt; i++) add(1 + Math.floor(r() * daysIn(ym)), -Math.round((lo + r() * (hi - lo)) / 10) * 10, m, c, r() > 0.35 ? 'Kaspi Gold' : 'Halyk');
+    }
+  }
+  return out;
+}
+
+// ───────────────────────── app state ─────────────────────────
+const S = {
+  view: 'auth', authTab: 'login', acctId: null, login: '', key: null, acct: null,
+  txs: [], settings: {budgets: {}, rules: {}, lockMin: 5, notified: {}, cards: [], loans: []},
+  tab: 'home', ym: ymOf(todayISO()), filterCat: '', filterCard: '', q: '', period: {mode: 'month'}, searchOpen: false, scope: 'me', filterAuthor: '', famTxs: [], famMembers: new Map(), famKey: null, hideBal: (() => { try { return localStorage.getItem('aksha:hideBal') === '1'; } catch { return false; } })(),
+  failCount: 0, lockUntil: 0, recKey: null, saving: new Map(), dirty: new Set(), settingsDirty: false,
+  ai: {sample: undefined, out: '', busy: false, chatOut: '', chatBusy: false}
+};
+const app = $('#app');
+
+// ───────────────────────── persistence ─────────────────────────
+let saveTimer = null;
+function markDirty(...yms) { yms.forEach(ym => S.dirty.add(ym)); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 700); }
+function markSettings() { S.settingsDirty = true; clearTimeout(saveTimer); saveTimer = setTimeout(flush, 700); }
+async function flush() {
+  if (!S.key) return;
+  const yms = [...S.dirty]; S.dirty.clear();
+  try {
+    for (const ym of yms) {
+      const rows = S.txs.filter(t => ymOf(t.d) === ym);
+      if (!rows.length) await Store.delMonth(S.acctId, ym);
+      else await Store.setMonth(S.acctId, ym, {v: 1, ...(await encJSON(S.key, rows))});
+    }
+    if (fam() && yms.length) { try { await publishFam(yms); } catch {} }
+    if (S.settingsDirty) { S.settingsDirty = false; S.acct = {...S.acct, settings: await encJSON(S.key, S.settings)}; await Store.setAcct(S.acctId, S.acct); }
+  } catch (e) {
+    yms.forEach(y => S.dirty.add(y));
+    toast(e && e.code === 'quota_exceeded' ? 'Хранилище заполнено. Удалите старые месяцы.' : 'Не удалось сохранить. Проверьте связь, повторим через минуту.');
+    clearTimeout(saveTimer); saveTimer = setTimeout(flush, 60000);
+  }
+}
+async function loadVault() {
+  const months = await Store.listMonths(S.acctId);
+  const all = [];
+  for (const {box} of months) { try { all.push(...(await decJSON(S.key, box))); } catch {} }
+  S.txs = all;
+  if (S.acct.settings) { try { S.settings = {...S.settings, ...(await decJSON(S.key, S.acct.settings))}; } catch {} }
+  S.settings.budgets ||= {}; S.settings.rules ||= {}; S.settings.notified ||= {}; S.settings.cards ||= []; S.settings.loans ||= [];
+}
+function addTxs(rows) {
+  const seen = new Set(S.txs.map(t => `${t.d}|${Math.round(t.a*100)}|${t.m.toLowerCase()}|${t.tm || ''}`));
+  const fresh = rows.filter(t => { const k = `${t.d}|${Math.round(t.a*100)}|${t.m.toLowerCase()}|${t.tm || ''}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  S.txs.push(...fresh); markDirty(...new Set(fresh.map(t => ymOf(t.d))));
+  new Set(fresh.map(t => t.card).filter(Boolean)).forEach(ensureCard);
+  return fresh.length;
+}
+
+// ───────────────────────── auth ─────────────────────────
+async function acctIdFor(login) { return 'a' + (await sha256hex('aksha|' + login.trim().toLowerCase())).slice(0, 28); }
+async function signup(login, pw) {
+  const id = await acctIdFor(login);
+  if (await Store.getAcct(id)) throw new Error('Такой логин уже есть. Войдите или выберите другой.');
+  const raw = rand(32); const rec = makeRecoveryKey();
+  const acct = {v: 1, created: new Date().toISOString(), kdf: {alg: 'PBKDF2-SHA256', iter: KDF_ITER}, wp: await wrapVault(raw, pw), wr: await wrapVault(raw, rec.replace(/-/g, ''))};
+  const key = await importVault(raw);
+  S.settings = {budgets: {}, rules: {}, lockMin: 5, notified: {}, cards: [], loans: []};
+  acct.settings = await encJSON(key, S.settings);
+  await Store.setAcct(id, acct);
+  Object.assign(S, {acctId: id, login: login.trim(), key, acct, txs: [], recKey: rec});
+  await Store.log(id, 'signup');
+}
+async function login(loginName, pw) {
+  const id = await acctIdFor(loginName);
+  const acct = await Store.getAcct(id);
+  if (!acct) throw new Error('Неверный логин или пароль.');
+  let raw;
+  try { raw = await unwrapVault(acct.wp, pw); } catch { await Store.log(id, 'login_failed'); throw new Error('Неверный логин или пароль.'); }
+  Object.assign(S, {acctId: id, login: loginName.trim(), key: await importVault(raw), acct});
+  await loadVault(); await Store.log(id, 'login'); startFam();
+}
+async function recover(loginName, rec, newPw) {
+  const id = await acctIdFor(loginName); const acct = await Store.getAcct(id);
+  if (!acct) throw new Error('Неверный логин или ключ восстановления.');
+  let raw; try { raw = await unwrapVault(acct.wr, normRec(rec).replace(/-/g, '')); } catch { await Store.log(id, 'recovery_failed'); throw new Error('Неверный логин или ключ восстановления.'); }
+  acct.wp = await wrapVault(raw, newPw); await Store.setAcct(id, acct);
+  Object.assign(S, {acctId: id, login: loginName.trim(), key: await importVault(raw), acct});
+  await loadVault(); await Store.log(id, 'password_reset'); startFam();
+}
+function lock(reason) {
+  if (!S.key) return;
+  flush();
+  stopFam(); S.scope = 'me';
+  const id = S.acctId; Store.log(id, reason === 'idle' ? 'auto_lock' : 'logout');
+  Object.assign(S, {key: null, acct: null, txs: [], settings: {budgets: {}, rules: {}, lockMin: 5, notified: {}, cards: [], loans: []}, view: 'auth', authTab: 'login', tab: 'home', recKey: null, ai: {...S.ai, out: '', chatOut: ''}});
+  closeSheet(); render();
+  if (reason === 'idle') toast('Заблокировано после бездействия');
+}
+let idleT = null;
+function bumpIdle() { if (!S.key) return; clearTimeout(idleT); idleT = setTimeout(() => lock('idle'), (S.settings.lockMin || 5) * 60000); }
+['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, bumpIdle, {passive: true}));
+document.addEventListener('visibilitychange', () => { if (document.hidden) { S.hiddenAt = Date.now(); flush(); } else if (S.key && S.hiddenAt && Date.now() - S.hiddenAt > (S.settings.lockMin || 5) * 60000) lock('idle'); });
+
+function pwStrength(p) { let s = 0; if (p.length >= 10) s++; if (p.length >= 14) s++; if (/[a-zа-я]/.test(p) && /[A-ZА-Я]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^\p{L}\p{N}]/u.test(p)) s++; return s; }
+
+function renderAuth() {
+  const busy = Store.kind === 'pending';
+  const t = S.authTab;
+  const storeNote = Store.kind === 'local' ? `<div class="banner warn">Облачное хранилище недоступно в этом окне. Данные сохранятся только в этом браузере, тоже в зашифрованном виде.</div>` : '';
+  let form = '';
+  if (t === 'login') form = `
+    <form id="fLogin" class="stack" autocomplete="on">
+      <div class="field"><label for="lgLogin">Логин</label><input id="lgLogin" type="text" autocomplete="username" required value="${esc(S.login)}"></div>
+      <div class="field"><label for="lgPw">Пароль</label><input id="lgPw" type="password" autocomplete="current-password" required></div>
+      <p id="authErr" class="small" style="color:var(--bad)" hidden></p>
+      <button class="btn primary block" ${busy ? 'disabled' : ''}>Войти</button>
+      <button type="button" class="btn ghost block" data-act="toRecover">Забыли пароль?</button>
+    </form>`;
+  else if (t === 'signup') form = `
+    <form id="fSignup" class="stack" autocomplete="off">
+      <div class="field"><label for="suLogin">Придумайте логин</label><input id="suLogin" type="text" autocomplete="username" minlength="3" required></div>
+      <div class="field"><label for="suPw">Пароль, минимум 10 символов</label><input id="suPw" type="password" autocomplete="new-password" minlength="10" required></div>
+      <div class="bar" aria-hidden="true"><i id="pwMeter" style="width:0%"></i></div>
+      <div class="field"><label for="suPw2">Повторите пароль</label><input id="suPw2" type="password" autocomplete="new-password" minlength="10" required></div>
+      <p id="authErr" class="small" style="color:var(--bad)" hidden></p>
+      <button class="btn primary block" ${busy ? 'disabled' : ''}>Создать аккаунт</button>
+      <p class="small muted">Пароль никуда не отправляется. Из него на вашем устройстве получается ключ, которым шифруются все операции. Без пароля или ключа восстановления данные не открыть никому, включая администратора.</p>
+    </form>`;
+  else form = `
+    <form id="fRecover" class="stack">
+      <div class="field"><label for="rcLogin">Логин</label><input id="rcLogin" type="text" required value="${esc(S.login)}"></div>
+      <div class="field"><label for="rcKey">Ключ восстановления</label><input id="rcKey" type="text" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required autocomplete="off"></div>
+      <div class="field"><label for="rcPw">Новый пароль, минимум 10 символов</label><input id="rcPw" type="password" minlength="10" required autocomplete="new-password"></div>
+      <p id="authErr" class="small" style="color:var(--bad)" hidden></p>
+      <button class="btn primary block" ${busy ? 'disabled' : ''}>Восстановить доступ</button>
+      <button type="button" class="btn ghost block" data-act="toLogin">Назад ко входу</button>
+    </form>`;
+  app.innerHTML = `
+  <section class="auth">
+    <div class="spread"><div class="brand"><div class="mark">₸</div><div><h1>Ақша Трекер</h1><p class="muted small">Все ваши карты и траты в одном месте</p></div></div>${langSwitch()}</div>
+    ${t !== 'recover' ? `<div class="tabs2" role="tablist"><button role="tab" aria-selected="${t === 'login'}" data-act="toLogin">Вход</button><button role="tab" aria-selected="${t === 'signup'}" data-act="toSignup">Регистрация</button></div>` : '<h2>Восстановление доступа</h2>'}
+    ${busy ? '<div class="banner">Подключаем хранилище…</div>' : storeNote}
+    ${form}
+    <div class="card stack small">
+      <div class="lbl">Как защищены данные</div>
+      <p>Операции шифруются на вашем устройстве (AES-256-GCM, ключ из пароля через PBKDF2, ${nf0.format(KDF_ITER)} итераций).</p>
+      <p>На сервер уходит только шифр и служебный журнал: тип события и время входа.</p>
+    </div>
+    <p class="small muted">Демо-версия для личного использования.</p>
+  </section>`;
+  const meter = $('#pwMeter');
+  if (meter) $('#suPw').addEventListener('input', e => { const s = pwStrength(e.target.value); meter.style.width = (s / 5 * 100) + '%'; meter.className = s < 2 ? 'over' : s < 4 ? 'near' : ''; });
+  const err = m => { const e = $('#authErr'); e.textContent = m; e.hidden = false; };
+  $('#fLogin')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (Date.now() < S.lockUntil) return err(`Слишком много попыток. Подождите ${Math.ceil((S.lockUntil - Date.now()) / 1000)} с.`);
+    const btn = e.target.querySelector('.primary'); btn.disabled = true; btn.textContent = 'Проверяем…';
+    try { await login($('#lgLogin').value, $('#lgPw').value); S.failCount = 0; S.view = 'app'; bumpIdle(); render(); runAlerts(true); }
+    catch (x) { S.failCount++; if (S.failCount >= 5) { S.lockUntil = Date.now() + 30000 * (S.failCount - 4); } btn.disabled = false; btn.textContent = 'Войти'; err(x.message || 'Ошибка входа'); }
+  });
+  $('#fSignup')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const l = $('#suLogin').value.trim(), p = $('#suPw').value, p2 = $('#suPw2').value;
+    if (l.length < 3) return err('Логин: минимум 3 символа.');
+    if (p.length < 10) return err('Пароль: минимум 10 символов.');
+    if (p !== p2) return err('Пароли не совпадают.');
+    const btn = e.target.querySelector('.primary'); btn.disabled = true; btn.textContent = 'Создаём ключи…';
+    try { await signup(l, p); S.view = 'recovery'; render(); }
+    catch (x) { btn.disabled = false; btn.textContent = 'Создать аккаунт'; err(x.message || 'Не получилось создать аккаунт.'); }
+  });
+  $('#fRecover')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    if ($('#rcPw').value.length < 10) return err('Пароль: минимум 10 символов.');
+    const btn = e.target.querySelector('.primary'); btn.disabled = true; btn.textContent = 'Проверяем…';
+    try { await recover($('#rcLogin').value, $('#rcKey').value, $('#rcPw').value); S.view = 'app'; bumpIdle(); render(); toast('Пароль изменён'); }
+    catch (x) { btn.disabled = false; btn.textContent = 'Восстановить доступ'; err(x.message); }
+  });
+}
+function renderRecovery() {
+  app.innerHTML = `
+  <section class="auth">
+    <div class="brand"><div class="mark">₸</div><h1>Ключ восстановления</h1></div>
+    <p>Если забудете пароль, войти можно только с этим ключом. Мы его не храним и восстановить не сможем.</p>
+    <div class="reckey num" id="recKey">${esc(S.recKey)}</div>
+    <div class="row"><button class="btn block" id="copyRec">Скопировать</button></div>
+    <label class="row small"><input type="checkbox" id="recOk"> Я сохранил ключ в надёжном месте</label>
+    <button class="btn primary block" id="recNext" disabled>Продолжить</button>
+  </section>`;
+  $('#copyRec').onclick = () => { navigator.clipboard?.writeText(S.recKey).then(() => toast('Скопировано'), () => { const r = document.createRange(); r.selectNodeContents($('#recKey')); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Выделено, скопируйте вручную'); }); };
+  $('#recOk').onchange = e => $('#recNext').disabled = !e.target.checked;
+  $('#recNext').onclick = () => { S.recKey = null; S.view = 'banks'; bumpIdle(); render(); };
+}
+
+// ───────────────────────── analytics ─────────────────────────
+function monthRows(ym) { return S.txs.filter(t => ymOf(t.d) === ym && (!S.filterCard || t.card === S.filterCard)); }
+function stats(ym) {
+  const rows = monthRows(ym);
+  const spend = rows.filter(t => t.a < 0 && !NOT_SPEND.has(t.c));
+  const income = rows.filter(t => t.a > 0 && t.c === 'Доход');
+  const byCat = {}; spend.forEach(t => byCat[t.c] = (byCat[t.c] || 0) - t.a);
+  const byM = {}; spend.forEach(t => { const k = t.m; byM[k] = byM[k] || {n: 0, s: 0}; byM[k].n++; byM[k].s -= t.a; });
+  const daily = Array(daysIn(ym)).fill(0); spend.forEach(t => daily[+t.d.slice(8) - 1] -= t.a);
+  return {rows, spendTotal: spend.reduce((s, t) => s - t.a, 0), incomeTotal: income.reduce((s, t) => s + t.a, 0), byCat, byM, daily, nSpend: spend.length};
+}
+function cumulative(daily) { let s = 0; return daily.map(v => s += v); }
+
+function lineChart(ym) {
+  const cur = stats(ym), prev = stats(ymShift(ym, -1));
+  const isCur = ym === ymOf(todayISO());
+  const days = daysIn(ym); const upTo = isCur ? new Date().getDate() : days;
+  const a = cumulative(cur.daily).slice(0, upTo), b = cumulative(prev.daily);
+  const W = 360, H = 170, L = 50, R = 8, T = 10, B = 24;
+  const maxV = Math.max(1, ...a, ...b);
+  const step = niceStep(maxV / 3); const top = Math.ceil(maxV / step) * step;
+  const x = i => L + (i / (days - 1)) * (W - L - R);
+  const y = v => T + (1 - v / top) * (H - T - B);
+  const path = arr => arr.map((v, i) => `${i ? 'L' : 'M'}${x(Math.min(i, days - 1)).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  let grid = '';
+  for (let v = 0; v <= top + 1; v += step) grid += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${short(v)}</text>`;
+  const ticks = [1, 10, 20, days].map(d => `<text x="${x(d - 1)}" y="${H - 8}" text-anchor="middle">${d}</text>`).join('');
+  const area = a.length ? `${path(a)}L${x(a.length - 1)},${y(0)}L${x(0)},${y(0)}Z` : '';
+  const endX = a.length ? x(a.length - 1) : 0, endY = a.length ? y(a[a.length - 1]) : 0;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Накопленные расходы по дням: этот месяц против прошлого">
+    ${grid}${ticks}
+    ${b.length ? `<path d="${path(b)}" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="4 4" opacity=".7"/>` : ''}
+    ${area ? `<path d="${area}" fill="var(--accent)" opacity=".10"/>` : ''}
+    ${a.length ? `<path d="${path(a)}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"/><circle cx="${endX}" cy="${endY}" r="4" fill="var(--accent)"/>` : ''}
+  </svg>
+  <div class="row small muted" style="gap:16px"><span class="row" style="gap:6px"><svg width="18" height="6"><line x1="0" x2="18" y1="3" y2="3" stroke="var(--accent)" stroke-width="2.4"/></svg>${esc(ymLabel(ym).split(' ')[0])}</span><span class="row" style="gap:6px"><svg width="18" height="6"><line x1="0" x2="18" y1="3" y2="3" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="4 3"/></svg>${esc(ymLabel(ymShift(ym, -1)).split(' ')[0])}</span></div>`;
+}
+function niceStep(v) { const p = Math.pow(10, Math.floor(Math.log10(Math.max(v, 1)))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+
+// ───────────────────────── alerts (in-app "pushes") ─────────────────────────
+function computeAlerts() {
+  const ym = ymOf(todayISO()); const cur = stats(ym); const prev = stats(ymShift(ym, -1)); const out = [];
+  for (const [c, lim] of Object.entries(S.settings.budgets)) {
+    if (!lim) continue; const s = cur.byCat[c] || 0; const p = s / lim;
+    if (p >= 1) out.push({k: `b100|${ym}|${c}`, lvl: 'bad', t: `Лимит «${c}» превышен`, d: `Потрачено ${money(s)} из ${money(lim)}.`});
+    else if (p >= 0.8) out.push({k: `b80|${ym}|${c}`, lvl: 'warn', t: `«${c}»: ${Math.round(p * 100)}% лимита`, d: `Осталось ${money(lim - s)} до конца месяца.`});
+  }
+  const day = new Date().getDate(), dim = daysIn(ym);
+  if (day >= 7 && prev.spendTotal > 0) {
+    const proj = cur.spendTotal / day * dim;
+    if (proj > prev.spendTotal * 1.2) out.push({k: `pace|${ym}`, lvl: 'warn', t: 'Темп трат выше прошлого месяца', d: `По текущему темпу выйдет около ${money(Math.round(proj / 1000) * 1000)} против ${money(prev.spendTotal)} в прошлом месяце.`});
+  }
+  const ninety = new Date(); ninety.setDate(ninety.getDate() - 90); const since = ninety.toISOString().slice(0, 10);
+  const recent = S.txs.filter(t => t.a < 0 && !NOT_SPEND.has(t.c) && t.d >= since).map(t => -t.a).sort((a, b) => a - b);
+  if (recent.length >= 10) {
+    const med = recent[Math.floor(recent.length / 2)];
+    S.txs.filter(t => t.a < 0 && !NOT_SPEND.has(t.c) && !['Коммуналка', 'Связь и подписки', 'Переводы'].includes(t.c) && ymOf(t.d) === ym && -t.a > Math.max(30000, med * 6)).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 3).forEach(t => out.push({k: `big|${t.id}`, lvl: '', t: `Крупная трата: ${money(-t.a)}`, d: `${t.m}, ${dayLabel(t.d).toLowerCase()}. Обычная покупка у вас около ${money(med)}.`}));
+  }
+  // likely subscriptions: same merchant in each of the 2 previous months with a similar amount, not yet this month
+  const p1 = ymShift(ym, -1), p2 = ymShift(ym, -2); const byMer = {};
+  S.txs.filter(t => t.a < 0).forEach(t => { const k = t.m.toLowerCase(); (byMer[k] ||= []).push(t); });
+  for (const list of Object.values(byMer)) {
+    const a1 = list.filter(t => ymOf(t.d) === p1), a2 = list.filter(t => ymOf(t.d) === p2), a0 = list.filter(t => ymOf(t.d) === ym);
+    if (a1.length === 1 && a2.length === 1 && !a0.length && Math.abs(a1[0].a - a2[0].a) <= Math.abs(a1[0].a) * 0.15 && a1[0].c !== 'Продукты') {
+      const dd = +a1[0].d.slice(8); if (dd >= day && dd - day <= 5) out.push({k: `sub|${ym}|${a1[0].m}`, lvl: '', t: `Скоро спишется ${a1[0].m}`, d: `Около ${dd} числа, примерно ${money(-a1[0].a)}. Похоже на регулярный платёж.`});
+    }
+  }
+  for (const l of loansList()) {
+    if (l.left <= 0) continue; const n = loanNext(l); if (!n) continue;
+    if (n.days <= 3) out.push({k: `loan|${l.id}|${n.date}`, lvl: n.overdue ? 'bad' : 'warn', t: l.kind === 'credit' ? L(`Платёж по «${l.name}» ${whenTxt(n)}`, `«${l.name}» төлемі ${whenTxt(n)}`) : l.kind === 'iowe' ? L(`Вернуть долг «${l.name}» ${whenTxt(n)}`, `«${l.name}» қарызын қайтару ${whenTxt(n)}`) : L(`${l.name} должен вернуть ${whenTxt(n)}`, `${l.name} қарызды қайтаруы керек ${whenTxt(n)}`), d: l.kind === 'credit' ? L(`${money(l.pay || 0)}, осталось ${money(l.left)}.`, `${money(l.pay || 0)}, қалды ${money(l.left)}.`) : L(`Сумма ${money(l.left)}.`, `Сома ${money(l.left)}.`)});
+  }
+  return out;
+}
+function runAlerts(silent) {
+  const al = computeAlerts(); const fresh = al.filter(a => !S.settings.notified[a.k]);
+  if (fresh.length) { if (!silent) toast(fresh[0].t); fresh.forEach(a => S.settings.notified[a.k] = 1); markSettings(); }
+  S.alertCount = al.length; S.newAlerts = fresh.length; return al;
+}
+
+// ───────────────────────── app shell ─────────────────────────
+const ICONS = {
+  home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  list: '<svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  ai: '<svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>'
+};
+function shell(inner, {month = true} = {}) {
+  const titles = {home: 'Обзор', stats: 'Аналитика', ai: 'ИИ', user: 'Профиль'};
+  const tabs = [['home', 'Обзор', svgIcon('wallet', 26)], ['stats', 'Аналитика', svgIcon('chart', 26)], ['plus', '', ''], ['ai', 'ИИ', ICONS.ai.replace('<svg', '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"')], ['user', 'Профиль', ICONS.user.replace('<svg', '<svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"')]];
+  const head = `<header class="nav2"><span></span><div class="navbtns">
+      <button class="nb" aria-label="Уведомления" data-act="alerts">${svgIcon('bell', 20)}${S.alertCount ? `<span class="badge">${S.alertCount}</span>` : ''}</button>
+      ${S.tab !== 'user' ? `<button class="nb me" aria-label="Профиль" data-tab="user">${esc((S.login || '?')[0].toUpperCase())}</button>` : ''}</div></header>
+    <h1 class="ltitle">${esc(inner.title || titles[S.tab] || '')}</h1>
+    ${month && S.tab !== 'home' ? `<div class="mnav" style="margin:-4px 0 14px;justify-content:flex-start"><button data-act="prevM" aria-label="Предыдущий месяц">${svgIcon('chevl', 18)}</button><span>${esc(ymLabel(S.ym))}</span><button data-act="nextM" aria-label="Следующий месяц" ${S.ym >= ymOf(todayISO()) ? 'disabled' : ''}>${svgIcon('chevr', 18)}</button></div>` : ''}`;
+  return `${head}${inner.html}
+  <nav class="tabbar" aria-label="Разделы"><div class="in">${tabs.map(([k, l, ic]) => k === 'plus' ? `<button class="addt" data-tab="plus" aria-label="Добавить операцию"><span>${svgIcon('plus', 24, '#fff')}</span></button>` : `<button data-tab="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${ic}<span>${l}</span></button>`).join('')}</div></nav>`;
+}
+function emptyState() {
+  return `<div class="card stack" style="text-align:left">
+    <h2>Добавьте первые операции</h2>
+    <p class="muted">Загрузите выписку из банка, вставьте текст пуша о покупке или внесите трату вручную.</p>
+    <button class="btn primary block" data-act="openAdd">Добавить операции</button>
+    <button class="btn block" data-act="loadExample">Посмотреть на примере данных</button>
+    <p class="small muted">Пример помечается значком «пример», его можно удалить в профиле.</p>
+  </div>`;
+}
+function walletHTML() {
+  const cards = cardsList(); const ym = S.ym;
+  const per = c => S.txs.filter(t => t.card === c.name && ymOf(t.d) === ym && t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
+  const total = S.txs.filter(t => ymOf(t.d) === ym && t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
+  return `<div class="wallet" role="group" aria-label="Карты">
+    <button class="wcard all" data-card="" aria-pressed="${!S.filterCard}"><span class="wb"><span>Все карты</span></span><span><span class="wl">Потрачено</span><div class="ws num">${short(total)} ₸</div></span></button>
+    ${cards.map(c => { const b = bankByKey(c.bank); return `<button class="wcard" data-card="${esc(c.name)}" aria-pressed="${S.filterCard === c.name}" style="background:linear-gradient(135deg,${b.c1},${b.c2})"><span class="wb">${bankBadge(b, 24)}<span>${esc(c.name)}</span></span><span><span class="wl">${c.last4 ? '•• ' + esc(c.last4) + ' · ' : ''}Потрачено</span><div class="ws num">${short(per(c))} ₸</div></span></button>`; }).join('')}
+    <button class="wcard add" data-act="cards">${svgIcon('plus', 22)}<span>Карты</span></button>
+  </div>`;
+}
+function viewHome() {
+  if (!S.txs.length) return {html: `${cardsList().length ? walletHTML() : ''}${emptyState()}`};
+  const st = stats(S.ym), pv = stats(ymShift(S.ym, -1));
+  const isCur = S.ym === ymOf(todayISO());
+  const dayN = isCur ? new Date().getDate() : daysIn(S.ym);
+  const pvSame = isCur ? cumulative(pv.daily)[Math.min(dayN, pv.daily.length) - 1] || 0 : pv.spendTotal;
+  const diff = pvSame ? Math.round((st.spendTotal / pvSame - 1) * 100) : null;
+  const pm = +ymShift(S.ym, -1).slice(5) - 1;
+  const budgetsTotal = Object.values(S.settings.budgets).reduce((s, v) => s + (+v || 0), 0);
+  const cats = Object.entries(st.byCat).sort((a, b) => b[1] - a[1]);
+  const top = cats.slice(0, 5); const restV = cats.slice(5).reduce((s, c) => s + c[1], 0);
+  const dEntries = restV ? [...top, ['Остальное', restV]] : top;
+  const maxCat = Math.max(1, ...cats.map(c => Math.max(c[1], S.settings.budgets[c[0]] || 0)));
+  const tops = Object.entries(st.byM).sort((a, b) => b[1].s - a[1].s).slice(0, 5);
+  const hasEx = st.rows.some(t => t.ex);
+  const cmp = diff === null ? '' : `<span class="chip" style="background:${diff > 0 ? 'var(--bad-soft)' : 'var(--good-soft)'};color:${diff > 0 ? 'var(--bad)' : 'var(--good)'}">${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}%</span>`;
+  const cmpTxt = diff === null ? 'Прошлого месяца для сравнения нет' : `к ${isCur ? `1–${Math.min(dayN, daysIn(ymShift(S.ym, -1)))} ${MONTHS_G[pm]}` : MONTHS[pm].toLowerCase().replace(/ь$/, 'ю').replace(/й$/, 'ю').replace(/т$/, 'ту')}`;
+  return {html: `
+  <div class="stack lg">
+    ${hasEx ? '<div class="banner warn">Сейчас показан пример данных. Удалить его можно в профиле.</div>' : ''}
+    <section class="hero">
+      <div class="lbl">Потрачено ${isCur ? `с 1 по ${dayN} ${MONTHS_G[+S.ym.slice(5) - 1]}` : `за ${MONTHS[+S.ym.slice(5) - 1].toLowerCase()}`}${S.filterCard ? ' · ' + esc(S.filterCard) : ''}</div>
+      <div class="big num">${money(st.spendTotal)}</div>
+      <div class="row wrap2 small muted" style="gap:8px">${cmp}<span>${cmpTxt}</span><span>· ${money(Math.round(st.spendTotal / Math.max(1, dayN)))} в день</span></div>
+    </section>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Доход</div><div class="v num" style="color:var(--good)">${short(st.incomeTotal)} ₸</div></div>
+      <div class="kpi"><div class="lbl">Разница</div><div class="v num">${st.incomeTotal - st.spendTotal >= 0 ? '+' : '−'}${short(Math.abs(st.incomeTotal - st.spendTotal))} ₸</div></div>
+      <div class="kpi"><div class="lbl">${budgetsTotal ? 'Лимиты' : 'Покупок'}</div><div class="v num">${budgetsTotal ? `${Math.round(st.spendTotal / budgetsTotal * 100)}%` : st.nSpend}</div></div>
+    </div>
+    ${cats.length ? `<section class="card stack">
+      <div class="spread"><h3>Куда ушли деньги</h3><button class="btn ghost" style="min-height:32px;padding:0 8px;color:var(--accent)" data-act="budgets">Лимиты</button></div>
+      <div class="dn"><div class="center">${donut(dEntries, st.spendTotal)}<b>${esc(cats.length)} ${plural(cats.length, 'категория', 'категории', 'категорий')}</b></div>
+        <div class="legend">${dEntries.map(([c, v]) => `<button ${c !== 'Остальное' ? `data-catgo="${esc(c)}"` : ''}><i style="background:${c === 'Остальное' ? 'var(--line)' : catColor(c)}"></i><span>${esc(c)}</span><b class="num">${Math.round(v / st.spendTotal * 100)}%</b></button>`).join('')}</div></div>
+      <div class="stack" style="gap:14px;margin-top:6px">${cats.map(([c, v]) => { const lim = +S.settings.budgets[c] || 0; const p = lim ? v / lim : 0; return `
+        <button class="row" data-catgo="${esc(c)}" style="border:0;background:none;padding:0;text-align:left;width:100%;gap:12px">${catIcon(c, 34)}
+          <span class="cat" style="flex:1;min-width:0"><span>${esc(c)}</span><span class="num">${money(v)}${lim ? ` <span class="muted small">из ${short(lim)}</span>` : ''}</span>
+          <span class="bar"><i class="${p >= 1 ? 'over' : p >= .8 ? 'near' : ''}" style="width:${(v / maxCat * 100).toFixed(1)}%;${p < .8 ? `background:${catColor(c)}` : ''}"></i>${lim ? `<s style="left:calc(${(lim / maxCat * 100).toFixed(1)}% - 1px)"></s>` : ''}</span></span>
+        </button>`; }).join('')}</div>
+    </section>` : '<div class="card muted">Трат в этом месяце нет.</div>'}
+    <section class="card stack"><h3>Траты по дням</h3>${activityChart(S.ym)}</section>
+    <section class="card stack"><h3>Траты нарастающим итогом</h3>${lineChart(S.ym)}</section>
+    ${(() => { const rec = recurringList(); return rec.length ? `<section class="card stack"><div class="spread"><h3>Регулярные платежи</h3><span class="small muted num">${money(Math.round(rec.reduce((s, r) => s + r.avg, 0)))} в месяц</span></div><div class="list-plain">${rec.map(r => `<div style="align-items:center"><span class="row minw" style="gap:10px">${catIcon(r.c, 32)}<span class="minw"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.m)}</span><span class="small muted">${r.paid ? 'Оплачено в этом месяце' : `Около ${r.day} числа`}</span></span></span><span class="num">${money(Math.round(r.avg))}</span></div>`).join('')}</div></section>` : ''; })()}
+    ${tops.length ? `<section class="card stack"><h3>Где тратите больше всего</h3><div class="list-plain">${tops.map(([m, v]) => { const t0 = st.rows.find(t => t.m === m); return `<div style="align-items:center"><span class="row minw" style="gap:10px">${catIcon(t0 ? t0.c : 'Другое', 32)}<span class="minw" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m)} <span class="muted small">· ${v.n} ${plural(v.n, 'раз', 'раза', 'раз')}</span></span></span><span class="num">${money(v.s)}</span></div>`; }).join('')}</div></section>` : ''}
+  </div>`};
+}
+function renderBanks() {
+  const sel = new Set(cardsList().map(c => c.bank));
+  app.innerHTML = `<section class="auth">
+    <div class="stack"><h1>Какие у вас карты?</h1><p class="muted">Отметьте банки, которыми пользуетесь. Карты появятся в кошельке, операции будут с их значками.</p></div>
+    <div class="bankgrid">${BANKS.filter(b => b.k !== 'other').map(b => `<button data-bank="${b.k}" aria-pressed="${sel.has(b.k)}">${bankBadge(b, 40)}<span>${esc(b.n)}</span></button>`).join('')}</div>
+    <button class="btn primary block" id="bkNext">Готово</button>
+    <button class="btn ghost block" id="bkSkip">Пропустить</button>
+    <p class="small muted">Значки — наши условные обозначения, не логотипы банков.</p>
+  </section>`;
+  app.querySelectorAll('[data-bank]').forEach(b => b.onclick = () => b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'));
+  $('#bkNext').onclick = () => {
+    const picked = [...app.querySelectorAll('[data-bank][aria-pressed=true]')].map(b => b.dataset.bank);
+    const have = new Set(cardsList().map(c => c.bank));
+    picked.filter(k => !have.has(k)).forEach(k => (S.settings.cards ||= []).push({id: uid8(), bank: k, name: bankByKey(k).def}));
+    markSettings(); S.view = 'app'; render();
+  };
+  $('#bkSkip').onclick = () => { S.view = 'app'; render(); };
+}
+function sheetCards() {
+  const draw = () => {
+    const cards = cardsList();
+    openSheet(`<div class="stack"><div class="spread"><h2>Мои карты</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+      ${cards.length ? `<div class="stack" style="gap:8px">${cards.map(c => { const b = bankByKey(c.bank); return `<div class="row card" style="padding:10px 12px">${bankBadge(b, 32)}<div class="minw" style="flex:1"><b>${esc(c.name)}</b><div class="small muted">${esc(b.n)}${c.last4 ? ' · •• ' + esc(c.last4) : ''}</div></div><button class="btn ghost danger" style="min-height:36px;padding:0 10px" data-delcard="${esc(c.id)}">Убрать</button></div>`; }).join('')}</div>` : '<p class="muted">Карт пока нет.</p>'}
+      <h3 style="margin-top:6px">Добавить карту</h3>
+      <div class="bankgrid">${BANKS.map(b => `<button data-pickbank="${b.k}">${bankBadge(b, 34)}<span>${esc(b.n)}</span></button>`).join('')}</div>
+      <form id="fCard" class="stack" hidden>
+        <div class="field"><label for="cdName">Название</label><input id="cdName" type="text" required></div>
+        <div class="field"><label for="cdLast">Последние 4 цифры, необязательно</label><input id="cdLast" type="text" inputmode="numeric" maxlength="4" pattern="\\d{4}"></div>
+        <button class="btn primary block">Добавить</button>
+      </form>
+      <p class="small muted">Номер карты целиком не нужен и не хранится. Значки — наши условные обозначения, не логотипы банков.</p></div>`, sh => {
+      let bank = null;
+      sh.querySelectorAll('[data-pickbank]').forEach(b => b.onclick = () => { bank = b.dataset.pickbank; sh.querySelectorAll('[data-pickbank]').forEach(x => x.setAttribute('aria-pressed', x === b)); const f = $('#fCard', sh); f.hidden = false; $('#cdName', sh).value = bankByKey(bank).def; $('#cdName', sh).focus(); });
+      $('#fCard', sh).onsubmit = e => { e.preventDefault(); const name = $('#cdName', sh).value.trim(); if (!name || !bank) return; if (cardsList().some(c => c.name === name)) return toast('Карта с таким названием уже есть'); (S.settings.cards ||= []).push({id: uid8(), bank, name, last4: $('#cdLast', sh).value.replace(/\D/g, '').slice(0, 4)}); markSettings(); render(); draw(); toast('Карта добавлена'); };
+      sh.querySelectorAll('[data-delcard]').forEach(b => b.onclick = () => { if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Точно?'; return; } S.settings.cards = cardsList().filter(c => c.id !== b.dataset.delcard); markSettings(); render(); draw(); });
+    });
+  };
+  draw();
+}
+const catGrid = (sel, attr = 'data-pickcat') => `<div class="catgrid">${CATS.map(c => `<button type="button" ${attr}="${esc(c)}" aria-pressed="${c === sel}">${catIcon(c, 34)}<span>${esc(c)}</span></button>`).join('')}</div>`;
+const cardPick = (sel) => `<div class="cardpick">${cardsList().map(c => `<button type="button" data-pickcard="${esc(c.name)}" aria-pressed="${c.name === sel}">${bankBadge(bankByKey(c.bank), 20)}${esc(c.name)}</button>`).join('')}<button type="button" data-act="cards">${svgIcon('plus', 16)} Карта</button></div>`;
+function bindPick(root, attr, onPick) { root.querySelectorAll(`[${attr}]`).forEach(b => b.onclick = () => { root.querySelectorAll(`[${attr}]`).forEach(x => x.setAttribute('aria-pressed', x === b)); onPick(b.getAttribute(attr)); }); }
+const plural = (n, a, b, c) => { const m10 = n % 10, m100 = n % 100; return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c; };
+function viewList() {
+  if (!S.txs.length) return {html: emptyState()};
+  let rows = monthRows(S.ym);
+  if (S.filterCat) rows = rows.filter(t => t.c === S.filterCat);
+  if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(t => t.m.toLowerCase().includes(q) || t.c.toLowerCase().includes(q)); }
+  rows.sort((a, b) => (b.d + (b.tm || '')).localeCompare(a.d + (a.tm || '')));
+  const byDay = {}; rows.forEach(t => (byDay[t.d] ||= []).push(t));
+  const catsHere = [...new Set(monthRows(S.ym).map(t => t.c))];
+  return {html: `
+  <div class="stack">
+    <input id="q" type="text" placeholder="Поиск по магазину или категории" value="${esc(S.q)}" aria-label="Поиск">
+    <div class="chips"><button aria-pressed="${!S.filterCat}" data-fcat="">Все</button>${catsHere.map(c => `<button aria-pressed="${S.filterCat === c}" data-fcat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+    <div>${Object.keys(byDay).length ? Object.entries(byDay).map(([d, list]) => {
+      const daySum = list.filter(t => t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
+      return `<div class="day"><span>${esc(dayLabel(d))}</span><span class="num">${daySum ? money(daySum) : ''}</span></div>` + list.map(txRow).join('');
+    }).join('') : '<p class="muted" style="padding:20px 2px">Ничего не найдено.</p>'}</div>
+  </div>`};
+}
+function txRow(t) {
+  return `<button class="tx" data-tx="${esc(t.id)}">
+    <span class="icowrap">${catIcon(t.c)}${t.card ? bankBadge(bankOfCard(t.card), 16) : ''}</span>
+    <span class="minw"><span class="m" style="display:block">${esc(t.m)}</span><span class="meta"><span>${esc(t.c)}</span>${t.card ? `<span>· ${esc(t.card)}</span>` : ''}${t.tm ? `<span>· ${esc(t.tm)}</span>` : ''}${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
+    <span class="amt num ${t.a > 0 ? 'in' : ''}">${money(t.a, t.a > 0)}</span>
+  </button>`;
+}
+// ───────────────────────── overview: card stack + period + day feed ─────────────────────────
+let WD = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+function dayHead(iso) {
+  const [y, m, d] = iso.split('-').map(Number); const wd = WD[new Date(y, m - 1, d).getDay()];
+  const base = `${wd}, ${d} ${MONTHS_G[m - 1]}${y !== new Date().getFullYear() ? ' ' + y : ''}`;
+  const rel = dayLabel(iso); return rel === 'Сегодня' || rel === 'Вчера' ? `${base} — ${rel}` : base;
+}
+const txKey = t => t.d + 'T' + (t.tm || '12:00');
+function cardBalance(c) {
+  if (!c || !c.bal) return null;
+  return c.bal.value + S.txs.filter(t => t.card === c.name && txKey(t) > c.bal.at).reduce((s, t) => s + t.a, 0);
+}
+function periodOk(t) {
+  const p = S.period;
+  if (p.mode === 'today') return t.d === todayISO();
+  if (p.mode === 'range') return t.d >= p.from && t.d <= p.to;
+  return ymOf(t.d) === S.ym;
+}
+function periodLabel() {
+  const p = S.period;
+  if (p.mode === 'today') return 'Сегодня';
+  if (p.mode === 'range') { const f = iso => { const [, m, d] = iso.split('-').map(Number); return `${d} ${MONTHS_G[m - 1]}`; }; return `${f(p.from)} – ${f(p.to)}`; }
+  return ymLabel(S.ym);
+}
+function feedRows() {
+  const fm = S.scope === 'family' && fam();
+  let rows = (fm ? famRows() : S.txs).filter(t => periodOk(t) && (fm || !S.filterCard || t.card === S.filterCard) && (!S.filterCat || t.c === S.filterCat) && (!fm || !S.filterAuthor || t.author === S.filterAuthor));
+  if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(t => t.m.toLowerCase().includes(q) || t.c.toLowerCase().includes(q)); }
+  return rows.sort((a, b) => txKey(b).localeCompare(txKey(a)));
+}
+function slidesList() {
+  const s = [{type: 'all'}, ...cardsList().map(c => ({type: 'card', c}))];
+  if (fam()) s.push({type: 'family'});
+  s.push({type: 'add'});
+  return s;
+}
+function currentSlideIdx(sl) {
+  if (S.scope === 'family' && fam()) return sl.findIndex(x => x.type === 'family');
+  if (S.filterCard) { const i = sl.findIndex(x => x.type === 'card' && x.c.name === S.filterCard); if (i >= 0) return i; }
+  return 0;
+}
+function slideHTML(x) {
+  const hidden = S.hideBal;
+  const eye = `<button class="peye" data-act="toggleBal" aria-label="${hidden ? 'Показать баланс' : 'Скрыть баланс'}">${svgIcon(hidden ? 'eyeoff' : 'eye', 18, '#fff')}</button>`;
+  if (x.type === 'add') return `<div class="slide"><button class="pcard addc" data-act="cards" style="width:100%">${svgIcon('plus', 28, 'var(--accent)')}<span>Добавить карту</span></button></div>`;
+  if (x.type === 'family') {
+    const rows = famRows().filter(periodOk); const inc = rows.filter(t => t.a > 0 && t.c !== 'Между своими счетами').reduce((s, t) => s + t.a, 0); const exp = rows.filter(t => t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
+    return `<div class="slide"><section class="pcard" style="background:linear-gradient(150deg,#E07A4F,#9C3D1C)">
+      <div class="ptop"><div class="pname"><span class="bbadge" style="width:30px;height:30px;background:rgba(255,255,255,.2)">${svgIcon('users', 18, '#fff')}</span><span>Семья</span></div><button class="pgear" data-act="family" aria-label="Семейный бюджет">${svgIcon('gear', 18, '#fff')}</button></div>
+      <div><div class="plbl">Общий бюджет</div><div class="pbal num">${hidden ? '••••••' : money(Math.round(inc - exp), true)}${eye}</div></div>
+      <div class="pfoot"><span>${esc([...(S.famMembers?.values() || [])].join(', ') || fam().name)}</span></div></section></div>`;
+  }
+  if (x.type === 'all') {
+    const cards = cardsList(); const withBal = cards.filter(c => c.bal);
+    const bal = withBal.length ? withBal.reduce((s, c) => s + cardBalance(c), 0) : null;
+    return `<div class="slide"><section class="pcard" style="background:linear-gradient(150deg,#3A3A3C,#111113)">
+      <div class="ptop"><div class="pname"><span class="bbadge" style="width:30px;height:30px;font-size:15px;background:rgba(255,255,255,.16)">₸</span><span>Все счета</span></div><button class="pgear" data-act="cards" aria-label="Мои карты">${svgIcon('gear', 18, '#fff')}</button></div>
+      <div><div class="plbl">Текущий баланс${withBal.length && withBal.length < cards.length ? ` · по ${withBal.length} из ${cards.length} карт` : ''}</div>${bal === null ? `<button class="pset" data-act="cards">Указать баланс</button>` : `<div class="pbal num">${hidden ? '••••••' : money(Math.round(bal))}${eye}</div>`}</div>
+      <div class="pfoot"><span>${cards.length} ${plural(cards.length, 'карта', 'карты', 'карт')}</span><span>Ақша</span></div></section></div>`;
+  }
+  const c = x.c, b = bankByKey(c.bank), bal = cardBalance(c);
+  return `<div class="slide"><section class="pcard" style="background:linear-gradient(150deg,${b.c2},${b.c1})">
+    <div class="ptop"><div class="pname">${bankBadge(b, 30)}<span>${esc(c.name)}</span></div><button class="pgear" data-act="editCard" aria-label="Настройки карты">${svgIcon('gear', 18, '#fff')}</button></div>
+    <div><div class="plbl">Текущий баланс</div>${bal === null ? `<button class="pset" data-act="editCard">Указать баланс</button>` : `<div class="pbal num">${hidden ? '••••••' : money(Math.round(bal))}${eye}</div>`}</div>
+    <div class="pfoot"><span>${esc(b.n)}</span><span class="pnum">${c.last4 ? '•••• ' + esc(c.last4) : ''}</span></div></section></div>`;
+}
+function stackHTML(rows) {
+  const sl = slidesList(); const idx = currentSlideIdx(sl);
+  const fmScope = S.scope === 'family' && fam();
+  const inc = rows.filter(t => t.a > 0 && t.c !== 'Между своими счетами').reduce((s, t) => s + t.a, 0);
+  const exp = rows.filter(t => t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
+  const hidden = S.hideBal;
+  return `<div class="carousel" id="car" aria-label="Карты" data-idx="${idx}">${sl.map(slideHTML).join('')}</div>
+    <div class="dots" role="tablist" aria-label="Выбор карты">${sl.map((x, i) => `<button role="tab" aria-current="${i === idx}" aria-label="${x.type === 'card' ? esc(x.c.name) : x.type === 'all' ? 'Все счета' : x.type === 'family' ? 'Семья' : 'Добавить карту'}" data-go="${i}"></button>`).join('')}</div>
+    <div class="qa">
+      <button data-qa="expense"><span class="qi" style="color:var(--bad)">${svgIcon('arrur', 22)}</span>Расход</button>
+      <button data-qa="income"><span class="qi" style="color:var(--good)">${svgIcon('arrdl', 22)}</span>Доход</button>
+      <button data-qa="statement"><span class="qi">${svgIcon('box', 22)}</span>Выписка</button>
+      <button data-act="${fam() ? 'loans' : 'loans'}"><span class="qi" style="color:#A0522D">${svgIcon('bank', 22)}</span>Кредиты</button>
+    </div>
+    <div class="segc" role="tablist" aria-label="Период">
+      ${[['month', 'Этот месяц'], ['today', 'Сегодня'], ['range', 'Период']].map(([k, l]) => `<button role="tab" aria-selected="${S.period.mode === k}" data-period="${k}">${k === 'month' && S.period.mode === 'month' && S.ym !== ymOf(todayISO()) ? esc(ymLabel(S.ym)) : k === 'range' && S.period.mode === 'range' ? esc(periodLabel()) : l}</button>`).join('')}
+    </div>
+    ${S.period.mode === 'month' ? `<div class="mnav"><button data-act="prevM" aria-label="Предыдущий месяц">${svgIcon('chevl', 18)}</button><span>${esc(ymLabel(S.ym))}</span><button data-act="nextM" aria-label="Следующий месяц" ${S.ym >= ymOf(todayISO()) ? 'disabled' : ''}>${svgIcon('chevr', 18)}</button></div>` : ''}
+    <div class="sum2">
+      <div><div class="sl"><span style="color:var(--good)">${svgIcon('arrdl', 14)}</span>Доходы</div><div class="sv num" style="color:var(--good)">${hidden ? '•••' : '+' + nf0.format(Math.round(inc)) + ' ₸'}</div></div>
+      <div><div class="sl"><span style="color:var(--bad)">${svgIcon('arrur', 14)}</span>Расходы${fmScope ? ' семьи' : ''}</div><div class="sv num">${hidden ? '•••' : '−' + nf0.format(Math.round(exp)) + ' ₸'}</div></div>
+    </div>`;
+}
+function bindCarousel() {
+  const car = $('#car'); if (!car) return;
+  const sl = slidesList(); const idx = +car.dataset.idx || 0;
+  const step = () => { const s = car.querySelector('.slide'); return s ? s.offsetWidth + 12 : 1; };
+  car.scrollLeft = idx * step();
+  let t = null; const settle = () => {
+    const i = Math.max(0, Math.min(sl.length - 1, Math.round(car.scrollLeft / step())));
+    if (i === (+car.dataset.idx || 0)) return;
+    const x = sl[i]; car.dataset.idx = i;
+    document.querySelectorAll('.dots button').forEach((d, k) => d.setAttribute('aria-current', k === i));
+    if (x.type === 'add') return;
+    if (x.type === 'family') { S.scope = 'family'; S.filterCard = ''; }
+    else { S.scope = 'me'; S.filterAuthor = ''; S.filterCard = x.type === 'card' ? x.c.name : ''; }
+    render();
+  };
+  car.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(settle, 140); }, {passive: true});
+  if ('onscrollend' in window) car.addEventListener('scrollend', () => { clearTimeout(t); settle(); });
+  document.querySelectorAll('.dots [data-go]').forEach(d => d.onclick = () => car.scrollTo({left: +d.dataset.go * step(), behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'}));
+}
+// Analytics: daily activity bars stacked by category + recurring payments
+function activityChart(ym) {
+  const rows = monthRows(ym).filter(t => t.a < 0 && !NOT_SPEND.has(t.c));
+  const days = daysIn(ym); const byDay = Array.from({length: days}, () => ({}));
+  rows.forEach(t => { const d = +t.d.slice(8) - 1; byDay[d][t.c] = (byDay[d][t.c] || 0) - t.a; });
+  const tot = {}; rows.forEach(t => tot[t.c] = (tot[t.c] || 0) - t.a);
+  const top = Object.entries(tot).sort((a, b) => b[1] - a[1]).slice(0, 4).map(x => x[0]);
+  const key = c => top.includes(c) ? c : 'Остальное';
+  const sums = byDay.map(o => Object.values(o).reduce((s, v) => s + v, 0));
+  const max = Math.max(1, ...sums); const step = niceStep(max / 2); const topV = Math.ceil(max / step) * step;
+  const W = 360, H = 150, L = 4, R = 40, T = 8, B = 20; const bw = (W - L - R) / days;
+  const y = v => T + (1 - v / topV) * (H - T - B);
+  let g = ''; for (let v = 0; v <= topV + 1; v += step) g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width=".5"/><text x="${W - R + 4}" y="${y(v) + 4}">${short(v)}</text>`;
+  let bars = '';
+  byDay.forEach((o, i) => {
+    let acc = 0; const order = [...top, 'Остальное'];
+    const parts = {}; Object.entries(o).forEach(([c, v]) => parts[key(c)] = (parts[key(c)] || 0) + v);
+    order.forEach(c => { const v = parts[c]; if (!v) return; const y0 = y(acc), y1 = y(acc + v); acc += v; bars += `<rect x="${(L + i * bw + bw * .18).toFixed(1)}" y="${y1.toFixed(1)}" width="${(bw * .64).toFixed(1)}" height="${Math.max(1, y0 - y1).toFixed(1)}" rx="${Math.min(2, bw * .3).toFixed(1)}" fill="${c === 'Остальное' ? 'var(--muted)' : catColor(c)}" opacity="${c === 'Остальное' ? .45 : 1}"/>`; });
+  });
+  const ticks = [1, 8, 15, 22, days].map(d => `<text x="${(L + (d - .5) * bw).toFixed(1)}" y="${H - 5}" text-anchor="middle">${d}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Траты по дням по категориям">${g}${bars}${ticks}</svg>
+    <div class="chart-legend">${[...top, ...(Object.keys(tot).length > top.length ? ['Остальное'] : [])].map(c => `<span><i style="background:${c === 'Остальное' ? 'var(--muted)' : catColor(c)}"></i>${esc(c)}</span>`).join('')}</div>`;
+}
+function recurringList() {
+  const cur = ymOf(todayISO()); const months = [ymShift(cur, -1), ymShift(cur, -2), ymShift(cur, -3)];
+  const by = {}; S.txs.filter(t => t.a < 0 && !NOT_SPEND.has(t.c) && !['Продукты', 'Кафе и рестораны', 'Такси и транспорт', 'Доставка еды'].includes(t.c)).forEach(t => (by[t.m.toLowerCase()] ||= []).push(t));
+  const out = [];
+  for (const list of Object.values(by)) {
+    const per = months.map(ym => list.filter(t => ymOf(t.d) === ym));
+    const hit = per.filter(a => a.length === 1); if (hit.length < 2) continue;
+    const amts = hit.map(a => -a[0].a); const avg = amts.reduce((s, v) => s + v, 0) / amts.length;
+    if (amts.some(v => Math.abs(v - avg) > avg * 0.15)) continue;
+    const day = Math.round(hit.map(a => +a[0].d.slice(8)).reduce((s, v) => s + v, 0) / hit.length);
+    const paid = list.some(t => ymOf(t.d) === cur);
+    out.push({m: hit[0][0].m, c: hit[0][0].c, avg, day, paid});
+  }
+  return out.sort((a, b) => a.day - b.day);
+}
+
+function viewOverview() {
+  if (!S.txs.length) return {html: `${cardsList().length ? stackHTML([]) : ''}<div style="margin-top:16px">${emptyState()}</div>`};
+  const rows = feedRows();
+  const byDay = {}; rows.forEach(t => (byDay[t.d] ||= []).push(t));
+  const fc = S.filterCard, fcat = S.filterCat;
+  return {html: `
+    ${S.searchOpen ? `<div class="searchbar"><input id="q" type="text" placeholder="Магазин или категория" value="${esc(S.q)}" aria-label="Поиск"><button class="btn ghost" data-act="closeSearch">Отмена</button></div>` : ''}
+    ${stackHTML(rows)}
+    ${rows.some(t => t.ex) ? '<div class="banner warn" style="margin-top:14px">Показан пример данных. Удалить его можно в профиле.</div>' : ''}
+    ${loansStrip()}
+    <div class="chipsrow">
+      ${S.scope === 'family' && fam() ? `<button data-act="pickAuthor" class="${S.filterAuthor ? 'on' : ''}">${svgIcon('user1', 16)}<span>${S.filterAuthor ? esc(S.filterAuthor) : 'Автор'}</span></button>` : ''}
+      <button data-act="pickCat" class="${fcat ? 'on' : ''}">${fcat ? `<i class="cdot" style="background:#fff"></i>` : svgIcon('filter', 16)}<span>${fcat ? esc(fcat) : 'Категория'}</span></button>
+      <button data-act="openSearch" class="${S.q ? 'on' : ''}">${svgIcon('search', 16)}<span>${S.q ? esc(S.q) : 'Поиск'}</span></button>
+      ${fcat || S.q || S.filterAuthor ? `<button data-act="clearFilters" aria-label="Сбросить фильтры">${svgIcon('x', 16)}</button>` : ''}
+    </div>
+    <div class="feed">${Object.keys(byDay).length ? Object.entries(byDay).map(([d, list]) => {
+      const net = list.filter(t => !NOT_SPEND.has(t.c)).reduce((s, t) => s + t.a, 0);
+      return `<div class="dhead"><span>${esc(dayHead(d))}</span><span class="num">${net ? money(net, net > 0) : ''}</span></div><div class="group">${list.map(feedRow).join('')}</div>`;
+    }).join('') : `<div class="group" style="padding:24px 18px;color:var(--muted)">За ${esc(periodLabel().toLowerCase())} операций нет.</div>`}</div>`};
+}
+function feedRow(t) {
+  const [col, ic] = CAT_META[t.c] || CAT_META['Другое'];
+  return `<button class="frow" data-tx="${esc(t.id)}">
+    <span class="fico" style="background:${col}1c;color:${col}">${svgIcon(ic, 24, col)}</span>
+    <span class="minw"><span class="ft">${esc(t.c)}</span><span class="fs">${t.author && S.scope === 'family' ? `<span class="chip" style="padding:1px 7px">${esc(t.author)}</span>` : ''}${!S.filterCard && t.card ? bankBadge(t.bank ? bankByKey(t.bank) : bankOfCard(t.card), 16) : ''}<span>${esc(t.m)}</span>${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
+    <span class="fa num ${t.a > 0 ? 'in' : ''}">${money(t.a, t.a > 0)}</span>
+  </button>`;
+}
+function sheetPickAcc() {
+  const cards = cardsList();
+  openSheet(`<div class="stack"><div class="spread"><h2>Счёт</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="group">${[{all: true}, ...cards].map(c => { const b = c.all ? null : bankByKey(c.bank); const bal = c.all ? null : cardBalance(c); const on = c.all ? !S.filterCard : S.filterCard === c.name; return `<button class="frow" data-card="${c.all ? '' : esc(c.name)}" data-close="1"><span class="fico" style="background:var(--sunk)">${c.all ? svgIcon('wallet', 22) : bankBadge(b, 30)}</span><span class="minw"><span class="ft">${c.all ? 'Все счета' : esc(c.name)}</span><span class="fs">${c.all ? `${cards.length} ${plural(cards.length, 'карта', 'карты', 'карт')}` : (bal === null ? 'Баланс не указан' : (S.hideBal ? '•••' : money(Math.round(bal))))}</span></span><span>${on ? svgIcon('check', 22, 'var(--accent)') : ''}</span></button>`; }).join('')}</div>
+    <button class="btn block" data-act="cards">Управлять картами</button></div>`);
+}
+function sheetPickCat() {
+  openSheet(`<div class="stack"><div class="spread"><h2>Категория</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <button class="btn block" data-fcat="" data-close="1">Все категории</button>
+    <div class="catgrid">${CATS.map(c => `<button type="button" data-fcat="${esc(c)}" data-close="1" aria-pressed="${c === S.filterCat}">${catIcon(c, 34)}<span>${esc(c)}</span></button>`).join('')}</div></div>`);
+}
+function sheetRange() {
+  const t = todayISO(); const f = S.period.mode === 'range' ? S.period.from : ymOf(t) + '-01';
+  openSheet(`<form id="fRange" class="stack"><div class="spread"><h2>Период</h2><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="row"><div class="field" style="flex:1"><label for="rgFrom">С</label><input id="rgFrom" type="date" value="${f}" max="${t}"></div><div class="field" style="flex:1"><label for="rgTo">По</label><input id="rgTo" type="date" value="${S.period.mode === 'range' ? S.period.to : t}" max="${t}"></div></div>
+    <div class="row wrap2">${[['7 дней', 6], ['30 дней', 29], ['90 дней', 89]].map(([l, n]) => `<button type="button" class="btn" data-quick="${n}">${l}</button>`).join('')}</div>
+    <button class="btn primary block">Показать</button></form>`, sh => {
+    sh.querySelectorAll('[data-quick]').forEach(b => b.onclick = () => { const d = new Date(); d.setDate(d.getDate() - +b.dataset.quick); $('#rgFrom', sh).value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; $('#rgTo', sh).value = t; });
+    $('#fRange', sh).onsubmit = e => { e.preventDefault(); let a = $('#rgFrom', sh).value, z = $('#rgTo', sh).value; if (!a || !z) return; if (a > z) [a, z] = [z, a]; S.period = {mode: 'range', from: a, to: z}; closeSheet(); render(); };
+  });
+}
+function sheetEditCard() {
+  const c = cardsList().find(x => x.name === S.filterCard); if (!c) return sheetCards();
+  const b = bankByKey(c.bank); const bal = cardBalance(c);
+  openSheet(`<form id="fEc" class="stack"><div class="spread"><div class="row" style="gap:10px">${bankBadge(b, 32)}<h2>${esc(c.name)}</h2></div><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="field"><label for="ecBal">Текущий баланс, ₸</label><input id="ecBal" type="text" inputmode="decimal" placeholder="Например, 177 162" value="${bal === null ? '' : Math.round(bal)}"></div>
+    <p class="small muted">Дальше баланс считается сам по операциям этой карты. Если в пуше есть «Доступно …», он обновится из пуша.</p>
+    <div class="field"><label for="ecName">Название</label><input id="ecName" type="text" value="${esc(c.name)}" required></div>
+    <div class="field"><label for="ecLast">Последние 4 цифры</label><input id="ecLast" type="text" inputmode="numeric" maxlength="4" value="${esc(c.last4 || '')}"></div>
+    <button class="btn primary block">Сохранить</button>
+    <button type="button" class="btn block" data-act="cards">Все карты</button></form>`, sh => {
+    $('#fEc', sh).onsubmit = e => {
+      e.preventDefault(); const nn = $('#ecName', sh).value.trim(); if (!nn) return;
+      if (nn !== c.name) { if (cardsList().some(x => x.name === nn)) return toast('Такое название уже есть'); const yms = new Set(); S.txs.forEach(t => { if (t.card === c.name) { t.card = nn; yms.add(ymOf(t.d)); } }); markDirty(...yms); c.name = nn; S.filterCard = nn; }
+      c.last4 = $('#ecLast', sh).value.replace(/\D/g, '').slice(0, 4);
+      const v = $('#ecBal', sh).value.trim();
+      if (v) { const now = new Date(); c.bal = {value: toNum(v), at: `${todayISO()}T${pad(now.getHours())}:${pad(now.getMinutes())}`}; } else delete c.bal;
+      markSettings(); closeSheet(); render(); toast('Сохранено');
+    };
+  });
+}
+
+// ───────────────────────── credits & debts ─────────────────────────
+const LOAN_KINDS = {credit: 'Кредит или рассрочка', iowe: 'Я должен', owesme: 'Мне должны'};
+const loansList = () => S.settings.loans || [];
+function loanNext(l) {
+  // returns {date: ISO, days: int, overdue: bool} for the next expected payment / due date
+  const t = todayISO(), now = new Date(); now.setHours(0, 0, 0, 0);
+  if (l.kind !== 'credit') { if (!l.due) return null; const d = new Date(l.due); d.setHours(0, 0, 0, 0); const days = Math.round((d - now) / 864e5); return {date: l.due, days, overdue: days < 0}; }
+  if (!l.day) return null;
+  let ym = ymOf(t); if (l.lastPaid === ym) ym = ymShift(ym, 1);
+  const dd = Math.min(l.day, daysIn(ym)); const iso = `${ym}-${pad(dd)}`; const d = new Date(iso); d.setHours(0, 0, 0, 0);
+  const days = Math.round((d - now) / 864e5); return {date: iso, days, overdue: days < 0};
+}
+const L = (ru, kk) => LANG === 'kk' ? kk : ru;
+const whenTxt = n => LANG === 'kk' ? (n.days === 0 ? 'бүгін' : n.days === 1 ? 'ертең' : n.days > 1 ? `${n.days} күннен кейін` : `${-n.days} күн кешікті`) : n.days === 0 ? 'сегодня' : n.days === 1 ? 'завтра' : n.days > 1 ? `через ${n.days} ${plural(n.days, 'день', 'дня', 'дней')}` : `просрочено на ${-n.days} ${plural(-n.days, 'день', 'дня', 'дней')}`;
+function loansStrip() {
+  const ls = loansList().filter(l => l.left > 0); if (!ls.length) return '';
+  const credits = ls.filter(l => l.kind === 'credit'); const iowe = ls.filter(l => l.kind === 'iowe').reduce((s, l) => s + l.left, 0); const owes = ls.filter(l => l.kind === 'owesme').reduce((s, l) => s + l.left, 0);
+  const next = ls.map(l => ({l, n: loanNext(l)})).filter(x => x.n).sort((a, b) => a.n.days - b.n.days)[0];
+  const line2 = next ? `${next.l.name} · ${next.l.kind === 'credit' ? money(next.l.pay || 0) : money(next.l.left)} · ${whenTxt(next.n)}` : [credits.length ? L('кредиты ', 'несие ') + short(credits.reduce((s, l) => s + l.left, 0)) + ' ₸' : '', iowe ? L('я должен ', 'менің қарызым ') + short(iowe) + ' ₸' : '', owes ? L('мне должны ', 'маған қарыз ') + short(owes) + ' ₸' : ''].filter(Boolean).join(' · ');
+  return `<button class="lstrip" data-act="loans"><span class="fico" style="background:${catColor('Кредиты и долги')}1c">${svgIcon('bank', 24, catColor('Кредиты и долги'))}</span>
+    <span class="minw"><span class="ft" style="font-size:16px">Кредиты и долги</span><span class="fs"><span>${esc(line2)}</span></span></span>
+    <span class="muted">${svgIcon('chevr', 18)}</span></button>`;
+}
+function sheetLoans() {
+  const ls = loansList();
+  const groups = Object.keys(LOAN_KINDS).map(k => [k, ls.filter(l => l.kind === k)]).filter(([, a]) => a.length);
+  openSheet(`<div class="stack"><div class="spread"><h2>Кредиты и долги</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    ${groups.length ? groups.map(([k, arr]) => `<div class="stack" style="gap:8px"><div class="lbl">${LOAN_KINDS[k]}</div><div class="group">${arr.map(l => {
+      const n = loanNext(l); const p = l.total ? Math.max(0, Math.min(1, 1 - l.left / l.total)) : 0;
+      return `<div class="lrow"><div class="spread"><b>${esc(l.name)}</b><b class="num">${money(l.left)}</b></div>
+        <div class="bar"><i style="width:${(p * 100).toFixed(1)}%;background:${l.left <= 0 ? 'var(--good)' : catColor('Кредиты и долги')}"></i></div>
+        <div class="spread small muted"><span>${l.left <= 0 ? 'Закрыто' : n ? `${l.kind === 'credit' ? L('Платёж ', 'Төлем ') + money(l.pay || 0) + ' · ' : ''}${esc(dayLabel(n.date))} · ${whenTxt(n)}` : ''}</span><span>${L('из ', 'барлығы ')}${money(l.total)}</span></div>
+        ${l.left > 0 ? `<div class="row"><button class="btn" style="flex:1" data-loanpay="${esc(l.id)}">${l.kind === 'credit' ? 'Внести платёж' : l.kind === 'iowe' ? 'Я вернул' : 'Мне вернули'}</button><button class="btn ghost" data-loandel="${esc(l.id)}" aria-label="Удалить">${svgIcon('x', 18)}</button></div>` : `<button class="btn ghost" data-loandel="${esc(l.id)}">Убрать из списка</button>`}
+      </div>`; }).join('')}</div></div>`).join('') : '<p class="muted">Добавьте кредит, рассрочку или долг, и мы напомним о платеже заранее.</p>'}
+    <button class="btn primary block" data-act="loanAdd">Добавить</button></div>`, sh => {
+    sh.querySelectorAll('[data-loanpay]').forEach(b => b.onclick = () => sheetLoanPay(b.dataset.loanpay));
+    sh.querySelectorAll('[data-loandel]').forEach(b => b.onclick = () => { if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Удалить?'; return; } S.settings.loans = loansList().filter(l => l.id !== b.dataset.loandel); markSettings(); render(); sheetLoans(); });
+  });
+}
+function sheetLoanAdd() {
+  let kind = 'credit';
+  const draw = () => openSheet(`<form id="fLoan" class="stack"><div class="spread"><h2>Новый кредит или долг</h2><button type="button" class="btn ghost" data-act="loans">Назад</button></div>
+    <div class="seg">${Object.entries(LOAN_KINDS).map(([k, v]) => `<button type="button" role="tab" aria-selected="${k === kind}" data-lk="${k}">${k === 'credit' ? 'Кредит' : v}</button>`).join('')}</div>
+    <div class="field"><label for="lnName">${kind === 'credit' ? 'Банк или магазин' : kind === 'iowe' ? 'Кому должен' : 'Кто должен'}</label><input id="lnName" type="text" required placeholder="${kind === 'credit' ? 'Например, Kaspi Red, рассрочка' : 'Имя'}"></div>
+    <div class="row"><div class="field" style="flex:1"><label for="lnTotal">Сумма, ₸</label><input id="lnTotal" type="text" inputmode="decimal" required></div><div class="field" style="flex:1"><label for="lnLeft">Осталось, ₸</label><input id="lnLeft" type="text" inputmode="decimal" placeholder="= сумма"></div></div>
+    ${kind === 'credit' ? `<div class="row"><div class="field" style="flex:1"><label for="lnPay">Платёж в месяц, ₸</label><input id="lnPay" type="text" inputmode="decimal" required></div><div class="field" style="flex:1"><label for="lnDay">День платежа</label><input id="lnDay" type="number" min="1" max="31" required></div></div>
+      <div class="field"><label>Карта для списания</label>${cardPick(cardsList()[0]?.name || '')}</div>` : `<div class="field"><label for="lnDue">Вернуть до, необязательно</label><input id="lnDue" type="date"></div>`}
+    <button class="btn primary block">Сохранить</button></form>`, sh => {
+    sh.querySelectorAll('[data-lk]').forEach(b => b.onclick = () => { kind = b.dataset.lk; draw(); });
+    let card = cardsList()[0]?.name || ''; bindPick(sh, 'data-pickcard', v => card = v);
+    $('#fLoan', sh).onsubmit = e => {
+      e.preventDefault(); const total = Math.abs(toNum($('#lnTotal', sh).value)); if (!total) return toast('Введите сумму');
+      const lv = $('#lnLeft', sh).value.trim(); const left = lv ? Math.abs(toNum(lv)) : total;
+      const l = {id: uid8(), kind, name: $('#lnName', sh).value.trim(), total, left: Math.min(left, total), created: todayISO()};
+      if (kind === 'credit') { l.pay = Math.abs(toNum($('#lnPay', sh).value)) || 0; l.day = Math.min(31, Math.max(1, +$('#lnDay', sh).value || 1)); l.card = card; } else l.due = $('#lnDue', sh).value || '';
+      (S.settings.loans ||= []).push(l); markSettings(); render(); runAlerts(true); sheetLoans(); toast('Сохранено');
+    };
+  });
+  draw();
+}
+function sheetLoanPay(id) {
+  const l = loansList().find(x => x.id === id); if (!l) return;
+  const credit = l.kind === 'credit';
+  openSheet(`<form id="fPay" class="stack"><div class="spread"><h2>${esc(l.name)}</h2><button type="button" class="btn ghost" data-act="loans">Назад</button></div>
+    <p class="muted">Осталось ${money(l.left)}</p>
+    <div class="field"><label for="pyAmt">Сумма, ₸</label><input id="pyAmt" type="text" inputmode="decimal" value="${credit ? Math.min(l.pay || l.left, l.left) : l.left}"></div>
+    ${l.kind !== 'owesme' ? `<div class="field"><label>С какой карты</label>${cardPick(l.card || cardsList()[0]?.name || '')}</div>` : `<div class="field"><label>На какую карту</label>${cardPick(cardsList()[0]?.name || '')}</div>`}
+    <label class="row small"><input type="checkbox" id="pyTx" checked> Записать операцию в ленту</label>
+    <button class="btn primary block">Сохранить</button></form>`, sh => {
+    let card = l.card || cardsList()[0]?.name || ''; bindPick(sh, 'data-pickcard', v => card = v);
+    $('#fPay', sh).onsubmit = e => {
+      e.preventDefault(); const amt = Math.min(Math.abs(toNum($('#pyAmt', sh).value)) || 0, l.left); if (!amt) return toast('Введите сумму');
+      l.left = Math.round((l.left - amt) * 100) / 100; if (credit) l.lastPaid = ymOf(todayISO());
+      if ($('#pyTx', sh).checked) { const nw = new Date(); addTxs([{id: uid8(), d: todayISO(), tm: `${pad(nw.getHours())}:${pad(nw.getMinutes())}`, a: l.kind === 'owesme' ? amt : -amt, m: l.name, c: 'Кредиты и долги', card, src: 'manual'}]); }
+      markSettings(); render(); runAlerts(true); sheetLoans(); toast(l.left <= 0 ? 'Закрыто полностью' : 'Сохранено');
+    };
+  });
+}
+
+// ───────────────────────── family budget (shared, end-to-end encrypted) ─────────────────────────
+// Each member writes only their own docs: families/<fid>/m/<memberId>_<YYYY-MM>, encrypted with the family key.
+// The family key travels only inside the invite code and inside each member's own encrypted settings.
+const fam = () => S.settings.family || null;
+const famCards = () => new Set((fam()?.cards) || []);
+const b64u = s => s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return s; };
+function inviteCode(f) { return b64u(btoa(JSON.stringify({f: f.id, k: f.key}))).match(/.{1,6}/g).join('-'); }
+function parseInvite(code) { try { const o = JSON.parse(atob(unb64u(code.replace(/[\s-]/g, '')))); if (o.f && o.k && /^[A-Za-z0-9]{8,40}$/.test(o.f)) return o; } catch {} return null; }
+let famUnsub = null;
+async function famKeyObj() { if (!S.famKey && fam()) S.famKey = await importVault(unb64(fam().key)); return S.famKey; }
+async function publishFam(yms) {
+  const f = fam(); if (!f || Store.kind !== 'cloud') return;
+  const key = await famKeyObj(); const shared = famCards(); const col = Store.db.collection(`families/${f.id}/m`);
+  for (const ym of yms) {
+    const rows = S.txs.filter(t => ymOf(t.d) === ym && shared.has(t.card)).map(t => ({id: t.id, d: t.d, tm: t.tm || '', a: t.a, m: t.m, c: t.c, card: t.card, bank: bankOfCard(t.card).k, ex: t.ex || undefined}));
+    const ref = col.doc(`${f.member}_${ym}`);
+    if (rows.length) await ref.set({v: 1, ...(await encJSON(key, {name: f.name, rows}))}); else await ref.delete();
+  }
+}
+async function startFam() {
+  stopFam(); const f = fam(); if (!f || Store.kind !== 'cloud') return;
+  const key = await famKeyObj();
+  famUnsub = Store.db.collection(`families/${f.id}/m`).onSnapshot(async snap => {
+    const others = [], members = new Map([[f.member, f.name]]);
+    for (const d of snap.docs) {
+      const mid = d.id.split('_')[0];
+      try { const o = await decJSON(key, d.data()); members.set(mid, o.name || 'Участник'); if (mid !== f.member) o.rows.forEach(r => others.push({...r, id: 'f:' + mid + ':' + r.id, author: o.name || 'Участник', mid, fam: true})); } catch {}
+    }
+    S.famTxs = others; S.famMembers = members;
+    if (S.view === 'app' && (S.scope === 'family' || S.tab === 'user')) render();
+  }, () => { S.famErr = true; });
+}
+function stopFam() { if (famUnsub) { try { famUnsub(); } catch {} famUnsub = null; } S.famTxs = []; S.famMembers = new Map(); S.famKey = null; }
+function famRows() {
+  const f = fam(); if (!f) return [];
+  const mine = S.txs.filter(t => famCards().has(t.card)).map(t => ({...t, author: f.name, mid: f.member}));
+  return [...mine, ...(S.famTxs || [])];
+}
+function sheetFamily() {
+  const f = fam();
+  if (Store.kind !== 'cloud') return openSheet(`<div class="stack"><div class="spread"><h2>Семейный бюджет</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div><p class="muted">Семейный бюджет работает только с облачным хранилищем. Откройте приложение в Claude.</p></div>`);
+  if (!f) {
+    let mode = 'create';
+    const draw = () => openSheet(`<form id="fFam" class="stack"><div class="spread"><h2>Семейный бюджет</h2><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+      <p class="muted">Общие траты с супругом или семьёй. Каждый видит операции с карт, которые участник сам сделал общими. Данные шифруются общим семейным ключом, сервер их не видит.</p>
+      <div class="seg"><button type="button" role="tab" aria-selected="${mode === 'create'}" data-fm="create">Создать</button><button type="button" role="tab" aria-selected="${mode === 'join'}" data-fm="join">Присоединиться</button></div>
+      <div class="field"><label for="fmName">Как вас подписывать в семье</label><input id="fmName" type="text" required value="${esc(S.login)}"></div>
+      ${mode === 'join' ? `<div class="field"><label for="fmCode">Код приглашения</label><textarea id="fmCode" required placeholder="Вставьте код, который вам прислали" style="min-height:80px"></textarea></div>` : ''}
+      <div class="field"><label>Какие карты сделать общими</label><div class="cardpick" style="flex-wrap:wrap">${cardsList().map(c => `<button type="button" data-fcard="${esc(c.name)}" aria-pressed="true">${bankBadge(bankByKey(c.bank), 20)}${esc(c.name)}</button>`).join('') || '<span class="muted small">Сначала добавьте карты</span>'}</div></div>
+      <p id="fmErr" class="small" style="color:var(--bad)" hidden></p>
+      <button class="btn primary block">${mode === 'create' ? 'Создать семью' : 'Присоединиться'}</button></form>`, sh => {
+      sh.querySelectorAll('[data-fm]').forEach(b => b.onclick = () => { mode = b.dataset.fm; draw(); });
+      sh.querySelectorAll('[data-fcard]').forEach(b => b.onclick = () => b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'));
+      $('#fFam', sh).onsubmit = async e => {
+        e.preventDefault(); const err = m => { const x = $('#fmErr', sh); x.textContent = m; x.hidden = false; };
+        const name = $('#fmName', sh).value.trim().slice(0, 40); if (!name) return err('Укажите имя.');
+        const cards = [...sh.querySelectorAll('[data-fcard][aria-pressed=true]')].map(b => b.dataset.fcard);
+        let id, key;
+        if (mode === 'create') { id = uid8() + uid8(); id = id.replace(/[^A-Za-z0-9]/g, '').slice(0, 20); key = b64(rand(32)); }
+        else { const o = parseInvite($('#fmCode', sh).value); if (!o) return err('Код не распознан. Проверьте, что скопировали его целиком.'); id = o.f; key = o.k; }
+        S.settings.family = {id, key, member: uid8().replace(/[^A-Za-z0-9]/g, '').slice(0, 10), name, cards, created: todayISO()};
+        markSettings(); await flush(); Store.log(S.acctId, mode === 'create' ? 'family_create' : 'family_join');
+        try { await publishFam([...new Set(S.txs.map(t => ymOf(t.d)))]); } catch { toast('Не удалось отправить общие операции, повторим позже'); }
+        await startFam(); sheetFamily(); render();
+      };
+    });
+    return draw();
+  }
+  const members = S.famMembers && S.famMembers.size ? [...S.famMembers.values()] : [f.name];
+  openSheet(`<div class="stack"><div class="spread"><h2>Семейный бюджет</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="card stack"><div class="lbl">Участники</div><div class="row wrap2">${members.map(m => `<span class="chip" style="font-size:14px;padding:6px 12px">${esc(m)}</span>`).join('')}</div></div>
+    <div class="card stack"><div class="lbl">Пригласить</div>
+      <p class="small">Отправьте этот код близкому человеку. С ним он откроет общий бюджет, поэтому не публикуйте код. Чтобы приглашённый мог открыть само приложение, поделитесь им через меню «Поделиться» с правом вносить изменения.</p>
+      <div class="reckey" id="famCode" style="font-size:14px"></div><button class="btn block" id="famCopy">Скопировать код</button></div>
+    <div class="card stack"><div class="lbl">Мои общие карты</div><div class="cardpick" style="flex-wrap:wrap">${cardsList().map(c => `<button type="button" data-fcard="${esc(c.name)}" aria-pressed="${famCards().has(c.name)}">${bankBadge(bankByKey(c.bank), 20)}${esc(c.name)}</button>`).join('')}</div>
+      <p class="small muted">Операции с этих карт видят все участники семьи.</p></div>
+    <button class="btn danger block" id="famLeave">Выйти из семьи</button></div>`, sh => {
+    $('#famCode', sh).textContent = inviteCode(f);
+    $('#famCopy', sh).onclick = () => navigator.clipboard?.writeText(inviteCode(f)).then(() => toast('Скопировано'), () => { const r = document.createRange(); r.selectNodeContents($('#famCode', sh)); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Выделено, скопируйте вручную'); });
+    sh.querySelectorAll('[data-fcard]').forEach(b => b.onclick = async () => { b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); f.cards = [...sh.querySelectorAll('[data-fcard][aria-pressed=true]')].map(x => x.dataset.fcard); markSettings(); try { await publishFam([...new Set(S.txs.map(t => ymOf(t.d)))]); toast('Сохранено'); } catch { toast('Не удалось обновить общие операции'); } render(); });
+    $('#famLeave', sh).onclick = async () => {
+      const b = $('#famLeave', sh); if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Точно выйти? Ваши общие операции удалятся у семьи'; return; }
+      try { const q = await Store.db.collection(`families/${f.id}/m`).get(); for (const d of q.docs) if (d.id.startsWith(f.member + '_')) await Store.db.collection(`families/${f.id}/m`).doc(d.id).delete(); } catch {}
+      stopFam(); delete S.settings.family; S.scope = 'me'; markSettings(); Store.log(S.acctId, 'family_leave'); closeSheet(); render(); toast('Вы вышли из семьи');
+    };
+  });
+}
+
+function viewAI() {
+  const s = S.ai.sample;
+  if (s === undefined) return {html: '<div class="card">Подключаем ИИ…</div>'};
+  if (s === null) return {html: `<div class="card stack"><h2>ИИ недоступен здесь</h2><p class="muted">Откройте приложение в Claude, чтобы ИИ мог разбирать траты. Уведомления о лимитах, темпе трат и регулярных платежах работают и без него.</p><button class="btn" data-act="alerts">Открыть уведомления</button></div>`};
+  if (!S.txs.length) return {html: emptyState()};
+  return {html: `
+  <div class="stack lg">
+    <section class="card stack">
+      <h2>Разбор месяца</h2>
+      <p class="muted small">ИИ получает сводку за ${esc(ymLabel(S.ym).toLowerCase())}: суммы по категориям, топ магазинов и лимиты. Номера карт и логин не отправляются.</p>
+      <details><summary>Что именно отправим</summary><pre class="peek" id="aiPeek"></pre></details>
+      <button class="btn primary block" id="aiRun" ${S.ai.busy ? 'disabled' : ''}>${S.ai.busy ? 'Думаю…' : 'Разобрать месяц'}</button>
+      <div class="ai-out" id="aiOut">${esc(S.ai.out)}</div>
+    </section>
+    <section class="card stack">
+      <h2>Спросить про траты</h2>
+      <form id="aiChat" class="stack">
+        <input id="aiQ" type="text" placeholder="Например: сколько я трачу на такси в неделю?" aria-label="Вопрос">
+        <button class="btn block" ${S.ai.chatBusy ? 'disabled' : ''}>${S.ai.chatBusy ? 'Думаю…' : 'Спросить'}</button>
+      </form>
+      <p class="small muted">С вопросом уходят операции выбранного месяца: дата, сумма, категория и магазин.</p>
+      <div class="ai-out" id="aiChatOut">${esc(S.ai.chatOut)}</div>
+    </section>
+  </div>`};
+}
+function aiSummary() {
+  const st = stats(S.ym), pv = stats(ymShift(S.ym, -1));
+  return {month: ymLabel(S.ym), today: todayISO(), monthComplete: S.ym < ymOf(todayISO()), currency: 'KZT',
+    spendTotal: st.spendTotal, incomeTotal: st.incomeTotal, prevMonthSpend: pv.spendTotal,
+    byCategory: Object.fromEntries(Object.entries(st.byCat).sort((a, b) => b[1] - a[1])),
+    prevByCategory: Object.fromEntries(Object.entries(pv.byCat).sort((a, b) => b[1] - a[1])),
+    topMerchants: Object.entries(st.byM).sort((a, b) => b[1].s - a[1].s).slice(0, 10).map(([m, v]) => ({merchant: m, times: v.n, total: v.s})),
+    budgets: S.settings.budgets, purchases: st.nSpend};
+}
+async function runAI() {
+  const sample = S.ai.sample; if (!sample) return;
+  S.ai.busy = true; S.ai.out = ''; render();
+  const prompt = `Ты финансовый помощник в личном приложении учёта расходов (Казахстан, тенге). Ниже сводка за месяц в JSON. Дай 3–4 коротких наблюдения по цифрам и 1 конкретный шаг на следующую неделю. ${LANG === 'kk' ? 'Пиши на казахском языке' : 'Пиши по-русски'}, просто, без воды, без markdown: каждый пункт с новой строки и начинай с «• ». Суммы пиши в тенге с пробелами между разрядами. Если месяц не закончен, учитывай это. Не придумывай данных, которых нет в сводке.\n\n${JSON.stringify(aiSummary())}`;
+  try {
+    const r = await sample(prompt, {onText: ({text}) => { S.ai.out = text; const o = $('#aiOut'); if (o) o.textContent = text; }, modelTier: 'default'});
+    S.ai.out = r.text; Store.log(S.acctId, 'ai_request');
+  } catch (e) { S.ai.out = e && e.code === 'not_granted' ? 'Доступ к ИИ не разрешён в этом окне.' : e && e.code === 'rate_limited' ? 'Слишком много запросов. Попробуйте через минуту.' : 'Не получилось получить ответ. Попробуйте ещё раз.'; }
+  S.ai.busy = false; render();
+}
+async function runChat(q) {
+  const sample = S.ai.sample; if (!sample || !q.trim()) return;
+  S.ai.chatBusy = true; S.ai.chatOut = ''; render();
+  const rows = monthRows(S.ym).sort((a, b) => a.d.localeCompare(b.d)).slice(-300).map(t => [t.d, t.a, t.c, t.m]);
+  const prompt = `Ты помощник в личном приложении учёта расходов (тенге). Ответь на вопрос пользователя только по данным ниже. Коротко, ${LANG === 'kk' ? 'на казахском языке' : 'по-русски'}, без markdown. Если данных не хватает, так и скажи.\n\nСводка: ${JSON.stringify(aiSummary())}\nОперации [дата, сумма (минус = расход), категория, магазин]: ${JSON.stringify(rows)}\n\nВопрос: ${q}`;
+  try { const r = await sample(prompt, {onText: ({text}) => { S.ai.chatOut = text; const o = $('#aiChatOut'); if (o) o.textContent = text; }, cache: false}); S.ai.chatOut = r.text; Store.log(S.acctId, 'ai_request'); }
+  catch (e) { S.ai.chatOut = e && e.code === 'rate_limited' ? 'Слишком много запросов. Попробуйте через минуту.' : 'Не получилось получить ответ.'; }
+  S.ai.chatBusy = false; render();
+}
+function viewProfile() {
+  const hasEx = S.txs.some(t => t.ex);
+  const months = new Set(S.txs.map(t => ymOf(t.d))).size;
+  return {title: 'Профиль', html: `
+  <div class="stack lg">
+    <section class="card stack">
+      <div class="spread"><div><div class="lbl">Аккаунт</div><h2>${esc(S.login)}</h2></div><span class="chip">${Store.kind === 'cloud' ? 'Облако · шифр' : 'Этот браузер · шифр'}</span></div>
+      <p class="small muted">${S.txs.length} ${plural(S.txs.length, 'операция', 'операции', 'операций')} за ${months} ${plural(months, 'месяц', 'месяца', 'месяцев')}</p>
+    </section>
+    <section class="card spread"><h3>Язык</h3>${langSwitch()}</section>
+    <section class="card stack">
+      <h3>Безопасность</h3>
+      <div class="field"><label for="lockMin">Блокировать после бездействия</label><select id="lockMin">${[1, 5, 15, 30].map(m => `<option value="${m}" ${+S.settings.lockMin === m ? 'selected' : ''}>${m} мин</option>`).join('')}</select></div>
+      <button class="btn block" data-act="chpw">Сменить пароль</button>
+      <button class="btn block" data-act="newrec">Новый ключ восстановления</button>
+      <button class="btn block" data-act="adminView">Что видит администратор</button>
+      <button class="btn block" data-act="logs">Журнал входов</button>
+      <button class="btn primary block" data-act="logout">Выйти</button>
+    </section>
+    <section class="card stack">
+      <h3>Данные</h3>
+      <button class="btn block" data-act="cards">Мои карты</button>
+      <button class="btn block" data-act="loans">Кредиты и долги</button>
+      <button class="btn block" data-act="family">Семейный бюджет</button>
+      <button class="btn block" data-act="budgets">Лимиты по категориям</button>
+      ${hasEx ? '<button class="btn block" data-act="clearEx">Удалить пример данных</button>' : ''}
+      <button class="btn danger block" data-act="wipe">Удалить аккаунт и все данные</button>
+    </section>
+  </div>`};
+}
+
+function render() {
+  const vk = S.view + '|' + S.tab; if (render.vk !== vk) { render.vk = vk; try { window.scrollTo(0, 0); } catch {} }
+  if (S.view === 'auth') return renderAuth();
+  if (S.view === 'recovery') return renderRecovery();
+  if (S.view === 'banks') return renderBanks();
+  const v = S.tab === 'stats' ? viewHome() : S.tab === 'ai' ? viewAI() : S.tab === 'user' ? viewProfile() : viewOverview();
+  app.innerHTML = shell(v, {month: S.tab !== 'user' && S.tab !== 'ai'});
+  translateTree(app);
+  bindCarousel();
+  app.querySelectorAll('[data-qa]').forEach(b => b.onclick = () => { const k = b.dataset.qa; if (k === 'expense') sheetAdd('manual', -1); else if (k === 'income') sheetAdd('manual', 1); else sheetAdd(k); });
+  const q = $('#q'); if (q) { q.oninput = e => { S.q = e.target.value; clearTimeout(render.qt); render.qt = setTimeout(() => { render(); const n = $('#q'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); }, 250); }; }
+  const peek = $('#aiPeek'); if (peek) peek.textContent = JSON.stringify(aiSummary(), null, 1);
+  $('#aiRun') && ($('#aiRun').onclick = runAI);
+  $('#aiChat')?.addEventListener('submit', e => { e.preventDefault(); runChat($('#aiQ').value); });
+  $('#lockMin') && ($('#lockMin').onchange = e => { S.settings.lockMin = +e.target.value; markSettings(); bumpIdle(); toast('Сохранено'); });
+}
+
+// ───────────────────────── sheets ─────────────────────────
+function openSheet(html, after) { $('#sheetRoot').innerHTML = `<div class="scrim" data-act="closeSheet"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`; after && after($('#sheetRoot .sheet')); }
+function closeSheet() { $('#sheetRoot').innerHTML = ''; }
+
+function sheetAddMenu() {
+  const tiles = [['expense', 'Расход', 'Покупка, оплата, перевод', 'arrur', 'var(--bad)'], ['income', 'Доход', 'Зарплата, возврат, перевод вам', 'arrdl', 'var(--good)'], ['push', 'Из пуша', 'Вставить текст уведомления банка', 'phone', 'var(--accent)'], ['statement', 'Выписка', 'PDF или CSV из банка', 'box', 'var(--accent)'], ['loan', 'Кредит или долг', 'Рассрочка, кредит, кто кому должен', 'bank', '#A0522D']];
+  openSheet(`<div class="stack"><div class="spread"><h2>Что добавить?</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="addgrid">${tiles.map(([k, t, d, ic, col]) => `<button data-addgo="${k}"><span class="fico" style="background:var(--sunk);color:${col}">${svgIcon(ic, 24, col)}</span><b>${t}</b><span class="small muted">${d}</span></button>`).join('')}</div></div>`, sh => {
+    sh.querySelectorAll('[data-addgo]').forEach(b => b.onclick = () => { const k = b.dataset.addgo; if (k === 'loan') sheetLoanAdd(); else if (k === 'expense') sheetAdd('manual', -1); else if (k === 'income') sheetAdd('manual', 1); else sheetAdd(k); });
+  });
+}
+function sheetAdd(mode = 'push', initSign = -1) {
+  const cards = [...new Set(S.txs.map(t => t.card).filter(Boolean))];
+  const seg = `<div class="seg" role="tablist">${[['push', 'Из пуша'], ['statement', 'Выписка'], ['manual', 'Вручную']].map(([k, l]) => `<button role="tab" aria-selected="${mode === k}" data-addmode="${k}">${l}</button>`).join('')}</div>`;
+  let body = '';
+  if (mode === 'push') body = `
+    <form id="fPush" class="stack">
+      <div class="field"><label for="pushText">Вставьте текст уведомления банка или строку из «Команд»</label><textarea id="pushText" placeholder="Покупка 4 590 ₸ MAGNUM CASH&CARRY. Доступно 120 300 ₸"></textarea></div>
+      <div id="pushPrev"></div>
+      <button class="btn primary block" id="pushSave" disabled>Сохранить операцию</button>
+    </form>
+    <details class="card"><summary>Мгновенно с iPhone через «Команды»</summary>
+      <ol class="steps" style="margin-top:10px">
+        <li>Откройте «Команды» → «Автоматизация» → «+» → «Транзакция».</li>
+        <li>Выберите карты из Wallet и включите «Запускать сразу».</li>
+        <li>Добавьте действие «Текст»: <b>Покупка [Сумма] [Продавец] [Карта]</b>, переменные берите из «Входные данные команды».</li>
+        <li>Добавьте «Скопировать в буфер обмена», затем «Открыть URL» со ссылкой на это приложение.</li>
+        <li>Здесь нажмите в поле и выберите «Вставить».</li>
+      </ol>
+      <p class="small muted" style="margin-top:8px">Срабатывает только на оплаты через Apple Pay. Переводы и оплаты в приложениях банков добавляйте выпиской.</p>
+    </details>
+    <details class="card"><summary>На Android</summary><p class="small" style="margin-top:8px">Скопируйте текст пуша из шторки или истории уведомлений и вставьте сюда. Автоматическое чтение пушей возможно только в нативном приложении, в этом демо его нет.</p></details>`;
+  else if (mode === 'statement') body = `
+    <div class="stack">
+      <p class="small muted">PDF или CSV выписка из банка. Файл читается на вашем устройстве и никуда не загружается.</p>
+      <div class="field"><label>Карта или счёт этой выписки</label>${cardPick(cardsList()[0]?.name || '')}</div>
+      <div class="field"><label for="stFile">Файл выписки</label><input id="stFile" type="file" accept=".pdf,.csv,text/csv,application/pdf"></div>
+      <div id="stPrev"></div>
+    </div>`;
+  else body = `
+    <form id="fManual" class="stack">
+      <div class="seg"><button type="button" role="tab" aria-selected="${initSign < 0}" data-sign="-">Расход</button><button type="button" role="tab" aria-selected="${initSign > 0}" data-sign="+">Доход</button></div>
+      <label class="sr" for="mAmt" style="position:absolute;left:-9999px">Сумма в тенге</label>
+      <div class="row" style="justify-content:center;gap:4px"><input id="mAmt" class="amtbig num" type="text" inputmode="decimal" placeholder="0" autocomplete="off" required style="max-width:240px"><span class="amtbig" style="min-height:0;font-size:32px;color:var(--muted)">₸</span></div>
+      <div class="field"><label for="mMer">Магазин или описание</label><input id="mMer" type="text" required></div>
+      <div class="field"><label>Карта</label>${cardPick(cardsList()[0]?.name || '')}</div>
+      <div class="field"><label for="mDate">Дата</label><input id="mDate" type="date" value="${todayISO()}" required></div>
+      <div class="field"><label>Категория <span class="muted">· если не выбрать, определим сами</span></label>${catGrid(initSign > 0 ? 'Доход' : '')}</div>
+      <button class="btn primary block">Сохранить</button>
+    </form>`;
+  openSheet(`<div class="stack"><div class="spread"><h2>Добавить операции</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>${seg}${body}</div>`, sh => {
+    sh.querySelectorAll('[data-addmode]').forEach(b => b.onclick = () => sheetAdd(b.dataset.addmode));
+    if (mode === 'push') {
+      let draft = null; const ta = $('#pushText', sh);
+      const upd = () => {
+        draft = ta.value.trim() ? parsePush(ta.value, S.settings.rules) : null;
+        $('#pushSave', sh).disabled = !draft;
+        $('#pushPrev', sh).innerHTML = draft ? `<div class="stack small">${txRow(draft)}<p class="muted">Проверьте сумму и магазин. Категорию можно поменять после сохранения.</p></div>` : (ta.value.trim() ? '<div class="banner warn">Не нашли сумму в тенге. Нужен текст вида «4 590 ₸».</div>' : '');
+      };
+      ta.addEventListener('input', upd); ta.addEventListener('paste', () => setTimeout(upd, 0));
+      $('#fPush', sh).onsubmit = e => { e.preventDefault(); if (!draft) return; draft.card = matchCard(draft.card, ta.value); const ba = draft.balAfter; delete draft.balAfter; const cc = cardsList().find(c => c.name === draft.card); if (cc && ba !== null && isFinite(ba)) { cc.bal = {value: ba, at: txKey(draft)}; markSettings(); } const n = addTxs([draft]); closeSheet(); afterChange(n ? `Сохранено: ${money(draft.a, draft.a > 0)}` : 'Такая операция уже есть'); };
+    }
+    if (mode === 'statement') {
+      let stCard = cardsList()[0]?.name || ''; bindPick(sh, 'data-pickcard', v => stCard = v);
+      $('#stFile', sh).onchange = async e => {
+        const f = e.target.files[0]; if (!f) return; const prev = $('#stPrev', sh);
+        prev.innerHTML = '<div class="banner">Читаем файл…</div>';
+        try {
+          const card = stCard;
+          const res = /\.pdf$/i.test(f.name) || f.type === 'application/pdf' ? parseStatementLines(await pdfLines(f), S.settings.rules, card) : parseCSV(await f.text(), S.settings.rules, card);
+          if (!res.rows.length) { prev.innerHTML = `<div class="banner bad">Не нашли операций в этом файле. Пришлите формат выписки, и мы научим приложение его читать.</div>`; return; }
+          const spend = res.rows.filter(r => r.a < 0).reduce((s, r) => s - r.a, 0);
+          const dates = res.rows.map(r => r.d).sort();
+          prev.innerHTML = `<div class="stack">
+            <div class="banner good">Найдено ${res.rows.length} ${plural(res.rows.length, 'операция', 'операции', 'операций')} с ${esc(dayLabel(dates[0]))} по ${esc(dayLabel(dates[dates.length - 1]))}. Расходы ${money(spend)}.${res.skipped ? ` Не распознано строк: ${res.skipped}.` : ''}</div>
+            <div class="tbl"><table><thead><tr><th>Дата</th><th>Сумма</th><th>Описание</th><th>Категория</th></tr></thead><tbody>${res.rows.slice(0, 8).map(r => `<tr><td class="num">${esc(r.d.split('-').reverse().join('.'))}</td><td class="num">${money(r.a, r.a > 0)}</td><td>${esc(r.m)}</td><td>${esc(r.c)}</td></tr>`).join('')}</tbody></table></div>
+            ${res.rows.length > 8 ? `<p class="small muted">и ещё ${res.rows.length - 8}</p>` : ''}
+            <button class="btn primary block" id="stImport">Импортировать</button></div>`;
+          $('#stImport', sh).onclick = () => { const n = addTxs(res.rows); Store.log(S.acctId, 'import', {n}); closeSheet(); afterChange(`Добавлено ${n}, пропущено повторов ${res.rows.length - n}`); };
+        } catch (x) { prev.innerHTML = `<div class="banner bad">Не получилось прочитать файл. ${/script/.test(x.message) ? 'Не загрузилась библиотека чтения PDF, попробуйте CSV.' : 'Проверьте, что это выписка в PDF или CSV.'}</div>`; }
+      };
+    }
+    if (mode === 'manual') {
+      let sign = initSign, card = cardsList()[0]?.name || '', cat = initSign > 0 ? 'Доход' : '';
+      sh.querySelectorAll('[data-sign]').forEach(b => b.onclick = () => { sign = b.dataset.sign === '+' ? 1 : -1; sh.querySelectorAll('[data-sign]').forEach(x => x.setAttribute('aria-selected', x === b)); });
+      bindPick(sh, 'data-pickcard', v => card = v); bindPick(sh, 'data-pickcat', v => cat = v);
+      const amtEl = $('#mAmt', sh); amtEl.addEventListener('input', () => { const raw = amtEl.value.replace(/[^\d.,]/g, '').replace('.', ','); const [i, f] = raw.split(','); amtEl.value = (i ? nf0.format(+i.replace(/\D/g, '') || 0) : '') + (f !== undefined ? ',' + f.slice(0, 2) : ''); });
+      setTimeout(() => amtEl.focus(), 60);
+      $('#fManual', sh).onsubmit = e => {
+        e.preventDefault(); const amt = Math.abs(toNum(amtEl.value)); if (!amt) { amtEl.focus(); return toast('Введите сумму'); }
+        const m = $('#mMer', sh).value.trim(); const a = sign * amt;
+        const dv = $('#mDate', sh).value; const nw = new Date(); const t = {id: uid8(), d: dv, tm: dv === todayISO() ? `${pad(nw.getHours())}:${pad(nw.getMinutes())}` : '', a, m, c: cat || guessCat(m, '', a, S.settings.rules), card, src: 'manual'};
+        addTxs([t]); closeSheet(); afterChange('Сохранено');
+      };
+    }
+  });
+}
+function matchCard(label, raw = '') { const cards = cardsList(); if (!cards.length) return label; if (label && cards.some(c => c.name === label)) return label; const l4 = (label || '').match(/^•(\d{4})$/); if (l4) { const hit4 = cards.find(c => c.last4 === l4[1]); if (hit4) return hit4.name; } const b = guessBank(raw + ' ' + label); const hit = b.k !== 'other' && cards.find(c => c.bank === b.k); return hit ? hit.name : (label || (cards.length === 1 ? cards[0].name : '')); }
+function afterChange(msg) { render(); runAlerts(false) ; if (msg && !S.newAlerts) toast(msg); render(); }
+
+function sheetTx(id) {
+  const t = S.txs.find(x => x.id === id); if (!t) return;
+  openSheet(`<div class="stack">
+    <div class="spread"><h2 class="minw" style="overflow:hidden;text-overflow:ellipsis">${esc(t.m)}</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="row" style="gap:14px"><span class="icowrap" style="width:52px;height:52px">${catIcon(t.c, 52)}${t.card ? bankBadge(bankOfCard(t.card), 20) : ''}</span><div class="big num" style="font-size:30px;font-weight:700;color:${t.a > 0 ? 'var(--good)' : 'var(--ink)'}">${money(t.a, t.a > 0)}</div></div>
+    <p class="muted small">${esc(dayLabel(t.d))}${t.tm ? ', ' + esc(t.tm) : ''}${t.card ? ' · ' + esc(t.card) : ''} · ${esc({push: 'из пуша', statement: 'из выписки', manual: 'вручную', example: 'пример'}[t.src] || '')}</p>
+    <div class="field"><label>Категория</label>${catGrid(t.c)}</div>
+    <label class="row small"><input type="checkbox" id="txRule" checked> Запомнить для «${esc(t.m)}»</label>
+    <button class="btn primary block" id="txSave">Сохранить</button>
+    <button class="btn danger block" id="txDel">Удалить операцию</button>
+  </div>`, sh => {
+    let pickedCat = t.c; bindPick(sh, 'data-pickcat', v => pickedCat = v);
+    $('#txSave', sh).onclick = () => {
+      const c = pickedCat; const key = t.m.trim().toLowerCase();
+      if ($('#txRule', sh).checked) { S.settings.rules[key] = c; markSettings(); S.txs.forEach(x => { if (x.m.trim().toLowerCase() === key && x.c !== c) { x.c = c; markDirty(ymOf(x.d)); } }); }
+      t.c = c; markDirty(ymOf(t.d)); closeSheet(); afterChange('Категория обновлена');
+    };
+    $('#txDel', sh).onclick = () => { const b = $('#txDel', sh); if (b.dataset.sure) { S.txs = S.txs.filter(x => x.id !== id); markDirty(ymOf(t.d)); closeSheet(); afterChange('Удалено'); } else { b.dataset.sure = 1; b.textContent = 'Нажмите ещё раз, чтобы удалить'; } };
+  });
+}
+function sheetBudgets() {
+  const st = stats(ymOf(todayISO())); const pv = stats(ymShift(ymOf(todayISO()), -1));
+  const cats = CATS.filter(c => !NOT_SPEND.has(c));
+  openSheet(`<form id="fBud" class="stack">
+    <div class="spread"><h2>Лимиты на месяц</h2><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <p class="small muted">Пустое поле значит без лимита. Предупредим на 80% и 100%.</p>
+    ${cats.map((c, i) => `<div class="field"><label for="bud${i}" class="row" style="gap:8px">${catIcon(c, 26)}<span>${esc(c)} <span class="muted">· прошлый месяц ${money(pv.byCat[c] || 0)}, сейчас ${money(st.byCat[c] || 0)}</span></span></label><input id="bud${i}" data-cat="${esc(c)}" type="number" inputmode="numeric" min="0" step="1000" value="${S.settings.budgets[c] || ''}"></div>`).join('')}
+    <button class="btn primary block">Сохранить лимиты</button></form>`, sh => {
+    $('#fBud', sh).onsubmit = e => { e.preventDefault(); const b = {}; sh.querySelectorAll('[data-cat]').forEach(i => { const v = Math.round(+i.value); if (v > 0) b[i.dataset.cat] = v; }); S.settings.budgets = b; markSettings(); closeSheet(); afterChange('Лимиты сохранены'); };
+  });
+}
+function sheetAlerts() {
+  const al = runAlerts(true); S.newAlerts = 0;
+  openSheet(`<div class="stack"><div class="spread"><h2>Уведомления</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    ${al.length ? al.map(a => `<div class="alert ${a.lvl}"><i></i><div><b>${esc(a.t)}</b><p class="small muted">${esc(a.d)}</p></div></div>`).join('') : '<p class="muted">Пока всё спокойно. Здесь появятся лимиты, необычно крупные траты, рост темпа расходов и скорые регулярные платежи.</p>'}
+    <p class="small muted">В демо уведомления показываются внутри приложения. Пуши на телефон потребуют нативного приложения.</p></div>`);
+  render();
+}
+async function sheetAdmin() {
+  let peek = '—';
+  try { const m = await Store.listMonths(S.acctId); if (m[0]) peek = JSON.stringify({month: m[0].ym, ...m[0].box}).slice(0, 360) + '…'; } catch {}
+  const logs = await Store.logs(S.acctId);
+  openSheet(`<div class="stack"><div class="spread"><h2>Что видит администратор</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <p class="small">Так ваши операции лежат на сервере. Без вашего пароля это просто набор символов:</p>
+    <pre class="peek" id="peekBox"></pre>
+    <p class="small">А вот что администратор видит в открытом виде: тип события и время.</p>
+    <pre class="peek" id="peekLogs"></pre>
+    <p class="small muted">Сумм, магазинов, карт и пароля в открытом виде на сервере нет. Ключ существует только в памяти вашего устройства, пока приложение разблокировано.</p></div>`, sh => {
+    $('#peekBox', sh).textContent = peek;
+    $('#peekLogs', sh).textContent = JSON.stringify(logs.slice(0, 4), null, 1);
+  });
+}
+async function sheetLogs() {
+  const logs = await Store.logs(S.acctId);
+  const L = {signup: 'Аккаунт создан', login: 'Вход', login_failed: 'Неверный пароль', logout: 'Выход', auto_lock: 'Автоблокировка', import: 'Импорт выписки', password_change: 'Смена пароля', password_reset: 'Восстановление по ключу', recovery_failed: 'Неверный ключ восстановления', recovery_rotated: 'Новый ключ восстановления', ai_request: 'Запрос к ИИ'};
+  openSheet(`<div class="stack"><div class="spread"><h2>Журнал входов</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="list-plain">${logs.length ? logs.map(l => `<div><span class="${/failed/.test(l.e) ? '' : ''}" style="${/failed/.test(l.e) ? 'color:var(--bad)' : ''}">${esc(L[l.e] || l.e)}${l.n ? ` · ${esc(l.n)}` : ''}</span><span class="num muted small">${esc(new Date(l.at).toLocaleString(LANG === 'kk' ? 'kk-KZ' : 'ru-RU', {day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'}))}</span></div>`).join('') : '<div class="muted">Записей нет</div>'}</div></div>`);
+}
+function sheetChpw() {
+  openSheet(`<form id="fCh" class="stack"><div class="spread"><h2>Сменить пароль</h2><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="field"><label for="chOld">Текущий пароль</label><input id="chOld" type="password" autocomplete="current-password" required></div>
+    <div class="field"><label for="chNew">Новый пароль, минимум 10 символов</label><input id="chNew" type="password" autocomplete="new-password" minlength="10" required></div>
+    <p id="chErr" class="small" style="color:var(--bad)" hidden></p>
+    <button class="btn primary block">Сменить</button></form>`, sh => {
+    $('#fCh', sh).onsubmit = async e => {
+      e.preventDefault(); const err = m => { const x = $('#chErr', sh); x.textContent = m; x.hidden = false; };
+      let raw; try { raw = await unwrapVault(S.acct.wp, $('#chOld', sh).value); } catch { return err('Текущий пароль неверный.'); }
+      if ($('#chNew', sh).value.length < 10) return err('Минимум 10 символов.');
+      S.acct = {...S.acct, wp: await wrapVault(raw, $('#chNew', sh).value)};
+      try { await Store.setAcct(S.acctId, S.acct); await Store.log(S.acctId, 'password_change'); closeSheet(); toast('Пароль изменён'); } catch { err('Не удалось сохранить, попробуйте ещё раз.'); }
+    };
+  });
+}
+function sheetNewRec() {
+  openSheet(`<form id="fRec" class="stack"><div class="spread"><h2>Новый ключ восстановления</h2><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <p class="small muted">Старый ключ перестанет работать.</p>
+    <div class="field"><label for="nrPw">Пароль</label><input id="nrPw" type="password" autocomplete="current-password" required></div>
+    <p id="nrErr" class="small" style="color:var(--bad)" hidden></p>
+    <div id="nrOut"></div>
+    <button class="btn primary block" id="nrBtn">Создать ключ</button></form>`, sh => {
+    $('#fRec', sh).onsubmit = async e => {
+      e.preventDefault(); let raw; try { raw = await unwrapVault(S.acct.wp, $('#nrPw', sh).value); } catch { const x = $('#nrErr', sh); x.textContent = 'Пароль неверный.'; x.hidden = false; return; }
+      const rec = makeRecoveryKey(); S.acct = {...S.acct, wr: await wrapVault(raw, rec.replace(/-/g, ''))};
+      try { await Store.setAcct(S.acctId, S.acct); await Store.log(S.acctId, 'recovery_rotated'); } catch { return toast('Не удалось сохранить'); }
+      $('#nrOut', sh).innerHTML = `<div class="reckey num"></div><p class="small muted">Сохраните ключ в надёжном месте.</p>`; $('#nrOut .reckey', sh).textContent = rec; $('#nrBtn', sh).hidden = true; $('#nrErr', sh).hidden = true;
+    };
+  });
+}
+function sheetWipe() {
+  openSheet(`<div class="stack"><div class="spread"><h2>Удалить аккаунт</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <p>Все операции, лимиты и журнал будут удалены без возможности восстановления.</p>
+    <div class="field"><label for="wpLogin">Введите логин «${esc(S.login)}», чтобы подтвердить</label><input id="wpLogin" type="text" autocomplete="off"></div>
+    <button class="btn danger block" id="wpGo" disabled>Удалить навсегда</button></div>`, sh => {
+    $('#wpLogin', sh).oninput = e => $('#wpGo', sh).disabled = e.target.value.trim().toLowerCase() !== S.login.toLowerCase();
+    $('#wpGo', sh).onclick = async () => { $('#wpGo', sh).disabled = true; $('#wpGo', sh).textContent = 'Удаляем…'; try { await Store.wipe(S.acctId); clearTimeout(saveTimer); S.dirty.clear(); S.settingsDirty = false; S.key = null; S.view = 'auth'; S.authTab = 'signup'; S.login = ''; closeSheet(); render(); toast('Аккаунт удалён'); } catch { toast('Не удалось удалить. Попробуйте ещё раз.'); $('#wpGo', sh).disabled = false; } };
+  });
+}
+
+// ───────────────────────── events ─────────────────────────
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act],[data-tab],[data-tx],[data-card],[data-fcat],[data-catgo],[data-period],[data-lang]');
+  if (!el) return;
+  if (el.classList.contains('scrim') && e.target !== el) return;
+  const a = el.dataset.act;
+  if (el.dataset.tab) { if (el.dataset.tab === 'plus') return sheetAddMenu(); S.tab = el.dataset.tab; render(); scrollTo(0, 0); if (S.tab === 'ai' && S.ai.sample === undefined) initAI(); return; }
+  if (el.dataset.tx) return sheetTx(el.dataset.tx);
+  if (el.dataset.lang) return setLang(el.dataset.lang);
+  if (el.dataset.close) closeSheet();
+  if (el.dataset.period) { const m = el.dataset.period; if (m === 'range') return sheetRange(); S.period = {mode: m}; if (m === 'month' && S.period.mode === 'month') {} return render(); }
+  if (el.dataset.card !== undefined) { S.scope = 'me'; S.filterAuthor = ''; S.filterCard = el.dataset.card; return render(); }
+  if (el.dataset.fcat !== undefined) { S.filterCat = el.dataset.fcat; return render(); }
+  if (el.dataset.catgo) { S.filterCat = el.dataset.catgo; S.tab = 'home'; render(); return scrollTo(0, 0); }
+  ({
+    toLogin: () => { S.authTab = 'login'; render(); }, toSignup: () => { S.authTab = 'signup'; render(); }, toRecover: () => { S.login = $('#lgLogin')?.value || S.login; S.authTab = 'recover'; render(); },
+    prevM: () => { S.ym = ymShift(S.ym, -1); render(); }, nextM: () => { if (S.ym < ymOf(todayISO())) { S.ym = ymShift(S.ym, 1); render(); } },
+    closeSheet: closeSheet, openAdd: () => sheetAdd(), cards: sheetCards, editCard: sheetEditCard, loans: sheetLoans, loanAdd: sheetLoanAdd, pickAcc: sheetPickAcc, pickCat: sheetPickCat,
+    toggleBal: () => { S.hideBal = !S.hideBal; try { localStorage.setItem('aksha:hideBal', S.hideBal ? '1' : '0'); } catch {} render(); },
+    clearFilters: () => { S.filterCard = ''; S.filterCat = ''; S.filterAuthor = ''; S.q = ''; S.searchOpen = false; render(); },
+    family: sheetFamily, scopeFamily: () => { S.scope = 'family'; S.filterCard = ''; render(); },
+    pickAuthor: () => { const names = [...new Set(famRows().map(t => t.author))]; openSheet(`<div class="stack"><div class="spread"><h2>Автор</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div><div class="group">${['', ...names].map(n => `<button class="frow" data-author="${esc(n)}"><span class="fico" style="background:var(--sunk)">${svgIcon('user1', 22)}</span><span class="ft">${n ? esc(n) : 'Все участники'}</span><span>${S.filterAuthor === n ? svgIcon('check', 22, 'var(--accent)') : ''}</span></button>`).join('')}</div></div>`, sh => sh.querySelectorAll('[data-author]').forEach(b => b.onclick = () => { S.filterAuthor = b.dataset.author; closeSheet(); render(); })); },
+    openSearch: () => { S.searchOpen = true; render(); $('#q')?.focus(); }, closeSearch: () => { S.searchOpen = false; S.q = ''; render(); }, alerts: sheetAlerts, budgets: sheetBudgets,
+    loadExample: () => { addTxs(exampleTxs()); runAlerts(true); render(); try { scrollTo(0, 0); } catch {} toast('Загружен пример данных'); },
+    clearEx: () => { const yms = new Set(S.txs.filter(t => t.ex).map(t => ymOf(t.d))); S.txs = S.txs.filter(t => !t.ex); markDirty(...yms); afterChange('Пример удалён'); },
+    logout: () => lock('logout'), chpw: sheetChpw, newrec: sheetNewRec, adminView: sheetAdmin, logs: sheetLogs, wipe: sheetWipe
+  }[a] || (() => {}))();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#sheetRoot').innerHTML) closeSheet(); });
+
+async function initAI() {
+  try { S.ai.sample = (await window.claude?.use?.('sample')) ?? null; } catch { S.ai.sample = null; }
+  if (S.tab === 'ai') render();
+}
+
+// ───────────────────────── boot ─────────────────────────
+applyLangArrays(); startTranslator();
+render();
+Store.init().then(() => { if (S.view === 'auth') render(); initAI(); });
+})();
+</script>
+</body>
+</html>
