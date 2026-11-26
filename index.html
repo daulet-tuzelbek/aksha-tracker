@@ -381,6 +381,8 @@ function applyLangArrays() {
   document.documentElement.lang = LANG === 'kk' ? 'kk' : 'ru';
 }
 const KK = {
+  'Пока приложение открыто, вход сохраняется. Если закрыть приложение полностью, при следующем открытии нужен пароль.': 'Қолданба ашық тұрғанда кіру сақталады. Қолданбаны толық жапсаңыз, келесі ашқанда құпиясөз қажет.', 'Никогда, пока приложение открыто': 'Қолданба ашық тұрғанда ешқашан',
+  'Запомнить вход на этом устройстве': 'Осы құрылғыда кіруді есте сақтау', 'Не запоминать': 'Есте сақтамау', 'После закрытия приложения потребуется пароль.': 'Қолданбаны жапқаннан кейін құпиясөз қажет болады.', 'Вход запомнен': 'Кіру есте сақталды', 'Устройство забыто': 'Құрылғы ұмытылды',
   'Цвет карты': 'Карта түсі', 'Золото': 'Алтын', 'Серебро': 'Күміс', 'Зелёный': 'Жасыл', 'Красный': 'Қызыл', 'Голубой': 'Көгілдір', 'Чёрный': 'Қара', 'Синий': 'Көк', 'Оранжевый': 'Қызғылт сары', 'Фиолетовый': 'Күлгін', 'Розовый': 'Қызғылт',
   'Apple Pay автоматически': 'Apple Pay автоматты түрде', 'Apple Pay автоматически: инструкция': 'Apple Pay автоматты түрде: нұсқаулық', 'Ссылка на ваше приложение': 'Қолданбаңыздың сілтемесі', 'Скопировать ссылку': 'Сілтемені көшіру',
   'Способ 1. Сразу после оплаты': '1-тәсіл. Төлемнен кейін бірден', 'Способ 2. Незаметно, в файл': '2-тәсіл. Байқатпай, файлға',
@@ -465,6 +467,8 @@ const KK = {
   'Темп трат выше прошлого месяца': 'Шығын қарқыны өткен айдан жоғары', 'Заблокировано после бездействия': 'Әрекетсіздіктен кейін бұғатталды'
 };
 const KK_RX = [
+  [/^(\d+) (?:день|дня|дней)$/, (m, a) => `${a} күн`],
+  [/^Вход сохранён до (.+)\. Пока вход сохранён, автоблокировка выключена\.$/, (m, a) => `Кіру ${a} дейін сақталған. Кіру сақталып тұрғанда автобұғаттау өшірулі.`],
   [/^Из Apple Pay добавлено: (\d+)$/, (m, a) => `Apple Pay-ден қосылды: ${a}`],
   [/^Около (\d+) числа$/, (m, a) => `Шамамен ${a}-күні`],
   [/^(.+) в месяц$/, (m, a) => `айына ${a}`],
@@ -850,7 +854,7 @@ function exampleTxs() {
 // ───────────────────────── app state ─────────────────────────
 const S = {
   view: 'auth', authTab: 'login', acctId: null, login: '', key: null, acct: null,
-  txs: [], settings: {budgets: {}, rules: {}, lockMin: 5, notified: {}, cards: [], loans: []},
+  txs: [], settings: {budgets: {}, rules: {}, lockMin: 0, notified: {}, cards: [], loans: []},
   tab: 'home', ym: ymOf(todayISO()), filterCat: '', filterCard: '', q: '', period: {mode: 'month'}, searchOpen: false, scope: 'me', filterAuthor: '', famTxs: [], famMembers: new Map(), famKey: null, hideBal: (() => { try { return localStorage.getItem('aksha:hideBal') === '1'; } catch { return false; } })(),
   failCount: 0, lockUntil: 0, recKey: null, saving: new Map(), dirty: new Set(), settingsDirty: false,
   ai: {sample: undefined, out: '', busy: false, chatOut: '', chatBusy: false}
@@ -884,7 +888,7 @@ async function loadVault() {
   for (const {box} of months) { try { all.push(...(await decJSON(S.key, box))); } catch {} }
   S.txs = all;
   if (S.acct.settings) { try { S.settings = {...S.settings, ...(await decJSON(S.key, S.acct.settings))}; } catch {} }
-  S.settings.budgets ||= {}; S.settings.rules ||= {}; S.settings.notified ||= {}; S.settings.cards ||= []; S.settings.loans ||= [];
+  S.settings.budgets ||= {}; S.settings.rules ||= {}; S.settings.notified ||= {}; S.settings.cards ||= []; S.settings.loans ||= []; if (!S.settings.lockSet) S.settings.lockMin = 0;
 }
 function addTxs(rows) {
   const seen = new Set(S.txs.map(t => `${t.d}|${Math.round(t.a*100)}|${t.m.toLowerCase()}|${t.tm || ''}`));
@@ -902,7 +906,7 @@ async function signup(login, pw) {
   const raw = rand(32); const rec = makeRecoveryKey();
   const acct = {v: 1, created: new Date().toISOString(), kdf: {alg: 'PBKDF2-SHA256', iter: KDF_ITER}, wp: await wrapVault(raw, pw), wr: await wrapVault(raw, rec.replace(/-/g, ''))};
   const key = await importVault(raw);
-  S.settings = {budgets: {}, rules: {}, lockMin: 5, notified: {}, cards: [], loans: []};
+  S.settings = {budgets: {}, rules: {}, lockMin: 0, notified: {}, cards: [], loans: []};
   acct.settings = await encJSON(key, S.settings);
   await Store.setAcct(id, acct);
   Object.assign(S, {acctId: id, login: login.trim(), key, acct, txs: [], recKey: rec});
@@ -926,19 +930,50 @@ async function recover(loginName, rec, newPw) {
   Object.assign(S, {acctId: id, login: loginName.trim(), key: await importVault(raw), acct});
   await loadVault(); await Store.log(id, 'password_reset'); startFam(); await afterUnlock();
 }
+
+// ───────────────────────── remembered session (this device only) ─────────────────────────
+// The vault key is a non-extractable CryptoKey kept in IndexedDB: scripts can use it to decrypt,
+// but cannot read or export its bytes. "Выйти" or "Забыть устройство" deletes it.
+const IDB = {
+  db: null,
+  open() { if (this.db) return Promise.resolve(this.db); return new Promise((res, rej) => { const r = indexedDB.open('aksha', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => { this.db = r.result; res(r.result); }; r.onerror = () => rej(r.error); }); },
+  async op(mode, fn) { const d = await this.open(); return new Promise((res, rej) => { const st = d.transaction('kv', mode).objectStore('kv'); const q = fn(st); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  get(k) { return this.op('readonly', st => st.get(k)); }, set(k, v) { return this.op('readwrite', st => st.put(v, k)); }, del(k) { return this.op('readwrite', st => st.delete(k)); }
+};
+const SS = {get: k => { try { return sessionStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} }, del: k => { try { sessionStorage.removeItem(k); } catch {} }};
+// Session lives until the app/tab is closed: the tab id is in sessionStorage (cleared on close),
+// the key itself is a non-extractable CryptoKey in IndexedDB that is only used when the ids match.
+async function rememberSession() {
+  const tab = SS.get('aksha:tab') || uid8(); SS.set('aksha:tab', tab);
+  try { await IDB.set('session', {acct: S.acctId, login: S.login, key: S.key, kind: Store.kind, tab}); S.remember = true; } catch { S.remember = false; }
+}
+async function forgetSession() { S.remember = false; SS.del('aksha:tab'); try { await IDB.del('session'); } catch {} }
+async function resumeSession() {
+  let x; try { x = await IDB.get('session'); } catch { return false; }
+  if (!x) return false;
+  if (!x.tab || x.tab !== SS.get('aksha:tab') || x.kind !== Store.kind || !(x.key instanceof CryptoKey)) { await forgetSession(); return false; }
+  const acct = await Store.getAcct(x.acct).catch(() => null);
+  if (!acct || !acct.settings) { await forgetSession(); return false; }
+  try { await decJSON(x.key, acct.settings); } catch { await forgetSession(); return false; }
+  Object.assign(S, {acctId: x.acct, login: x.login, key: x.key, acct, remember: true});
+  await loadVault(); Store.log(x.acct, 'login', {via: 'device'}); startFam(); await afterUnlock();
+  S.view = 'app'; render(); runAlerts(true); return true;
+}
+
 function lock(reason) {
   if (!S.key) return;
   flush();
   stopFam(); S.scope = 'me';
+  forgetSession();
   const id = S.acctId; Store.log(id, reason === 'idle' ? 'auto_lock' : 'logout');
-  Object.assign(S, {key: null, acct: null, txs: [], settings: {budgets: {}, rules: {}, lockMin: 5, notified: {}, cards: [], loans: []}, view: 'auth', authTab: 'login', tab: 'home', recKey: null, ai: {...S.ai, out: '', chatOut: ''}});
+  Object.assign(S, {key: null, acct: null, txs: [], settings: {budgets: {}, rules: {}, lockMin: 0, notified: {}, cards: [], loans: []}, view: 'auth', authTab: 'login', tab: 'home', recKey: null, ai: {...S.ai, out: '', chatOut: ''}});
   closeSheet(); render();
   if (reason === 'idle') toast('Заблокировано после бездействия');
 }
 let idleT = null;
-function bumpIdle() { if (!S.key) return; clearTimeout(idleT); idleT = setTimeout(() => lock('idle'), (S.settings.lockMin || 5) * 60000); }
+function bumpIdle() { clearTimeout(idleT); if (!S.key || !S.settings.lockMin) return; idleT = setTimeout(() => lock('idle'), S.settings.lockMin * 60000); }
 ['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, bumpIdle, {passive: true}));
-document.addEventListener('visibilitychange', () => { if (document.hidden) { S.hiddenAt = Date.now(); flush(); } else if (S.key && S.hiddenAt && Date.now() - S.hiddenAt > (S.settings.lockMin || 5) * 60000) lock('idle'); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { S.hiddenAt = Date.now(); flush(); } else if (S.key && S.settings.lockMin && S.hiddenAt && Date.now() - S.hiddenAt > S.settings.lockMin * 60000) lock('idle'); });
 
 function pwStrength(p) { let s = 0; if (p.length >= 10) s++; if (p.length >= 14) s++; if (/[a-zа-я]/.test(p) && /[A-ZА-Я]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^\p{L}\p{N}]/u.test(p)) s++; return s; }
 
@@ -995,7 +1030,7 @@ function renderAuth() {
     e.preventDefault();
     if (Date.now() < S.lockUntil) return err(`Слишком много попыток. Подождите ${Math.ceil((S.lockUntil - Date.now()) / 1000)} с.`);
     const btn = e.target.querySelector('.primary'); btn.disabled = true; btn.textContent = 'Проверяем…';
-    try { await login($('#lgLogin').value, $('#lgPw').value); S.failCount = 0; S.view = 'app'; bumpIdle(); render(); runAlerts(true); }
+    try { await login($('#lgLogin').value, $('#lgPw').value); await rememberSession(); S.failCount = 0; S.view = 'app'; bumpIdle(); render(); runAlerts(true); }
     catch (x) { S.failCount++; if (S.failCount >= 5) { S.lockUntil = Date.now() + 30000 * (S.failCount - 4); } btn.disabled = false; btn.textContent = 'Войти'; err(x.message || 'Ошибка входа'); }
   });
   $('#fSignup')?.addEventListener('submit', async e => {
@@ -1005,14 +1040,14 @@ function renderAuth() {
     if (p.length < 10) return err('Пароль: минимум 10 символов.');
     if (p !== p2) return err('Пароли не совпадают.');
     const btn = e.target.querySelector('.primary'); btn.disabled = true; btn.textContent = 'Создаём ключи…';
-    try { await signup(l, p); S.view = 'recovery'; render(); }
+    try { await signup(l, p); await rememberSession(); S.view = 'recovery'; render(); }
     catch (x) { btn.disabled = false; btn.textContent = 'Создать аккаунт'; err(x.message || 'Не получилось создать аккаунт.'); }
   });
   $('#fRecover')?.addEventListener('submit', async e => {
     e.preventDefault();
     if ($('#rcPw').value.length < 10) return err('Пароль: минимум 10 символов.');
     const btn = e.target.querySelector('.primary'); btn.disabled = true; btn.textContent = 'Проверяем…';
-    try { await recover($('#rcLogin').value, $('#rcKey').value, $('#rcPw').value); S.view = 'app'; bumpIdle(); render(); toast('Пароль изменён'); }
+    try { await recover($('#rcLogin').value, $('#rcKey').value, $('#rcPw').value); await rememberSession(); S.view = 'app'; bumpIdle(); render(); toast('Пароль изменён'); }
     catch (x) { btn.disabled = false; btn.textContent = 'Восстановить доступ'; err(x.message); }
   });
 }
@@ -1827,7 +1862,8 @@ function viewProfile() {
     <section class="card spread"><h3>Язык</h3>${langSwitch()}</section>
     <section class="card stack">
       <h3>Безопасность</h3>
-      <div class="field"><label for="lockMin">Блокировать после бездействия</label><select id="lockMin">${[1, 5, 15, 30].map(m => `<option value="${m}" ${+S.settings.lockMin === m ? 'selected' : ''}>${m} мин</option>`).join('')}</select></div>
+      <p class="small muted">Пока приложение открыто, вход сохраняется. Если закрыть приложение полностью, при следующем открытии нужен пароль.</p>
+      <div class="field"><label for="lockMin">Блокировать после бездействия</label><select id="lockMin">${[0, 1, 5, 15, 30].map(m => `<option value="${m}" ${(+S.settings.lockMin || 0) === m ? 'selected' : ''}>${m ? m + ' мин' : 'Никогда, пока приложение открыто'}</option>`).join('')}</select></div>
       <button class="btn block" data-act="chpw">Сменить пароль</button>
       <button class="btn block" data-act="newrec">Новый ключ восстановления</button>
       <button class="btn block" data-act="adminView">Что видит администратор</button>
@@ -1861,7 +1897,7 @@ function render() {
   const peek = $('#aiPeek'); if (peek) peek.textContent = JSON.stringify(aiSummary(), null, 1);
   $('#aiRun') && ($('#aiRun').onclick = runAI);
   $('#aiChat')?.addEventListener('submit', e => { e.preventDefault(); runChat($('#aiQ').value); });
-  $('#lockMin') && ($('#lockMin').onchange = e => { S.settings.lockMin = +e.target.value; markSettings(); bumpIdle(); toast('Сохранено'); });
+  $('#lockMin') && ($('#lockMin').onchange = e => { S.settings.lockMin = +e.target.value; S.settings.lockSet = true; markSettings(); bumpIdle(); toast('Сохранено'); });
 }
 
 // ───────────────────────── sheets ─────────────────────────
@@ -2049,7 +2085,7 @@ function sheetWipe() {
     <div class="field"><label for="wpLogin">Введите логин «${esc(S.login)}», чтобы подтвердить</label><input id="wpLogin" type="text" autocomplete="off"></div>
     <button class="btn danger block" id="wpGo" disabled>Удалить навсегда</button></div>`, sh => {
     $('#wpLogin', sh).oninput = e => $('#wpGo', sh).disabled = e.target.value.trim().toLowerCase() !== S.login.toLowerCase();
-    $('#wpGo', sh).onclick = async () => { $('#wpGo', sh).disabled = true; $('#wpGo', sh).textContent = 'Удаляем…'; try { await Store.wipe(S.acctId); clearTimeout(saveTimer); S.dirty.clear(); S.settingsDirty = false; S.key = null; S.view = 'auth'; S.authTab = 'signup'; S.login = ''; closeSheet(); render(); toast('Аккаунт удалён'); } catch { toast('Не удалось удалить. Попробуйте ещё раз.'); $('#wpGo', sh).disabled = false; } };
+    $('#wpGo', sh).onclick = async () => { $('#wpGo', sh).disabled = true; $('#wpGo', sh).textContent = 'Удаляем…'; try { await Store.wipe(S.acctId); await forgetSession(); clearTimeout(saveTimer); S.dirty.clear(); S.settingsDirty = false; S.key = null; S.view = 'auth'; S.authTab = 'signup'; S.login = ''; closeSheet(); render(); toast('Аккаунт удалён'); } catch { toast('Не удалось удалить. Попробуйте ещё раз.'); $('#wpGo', sh).disabled = false; } };
   });
 }
 
@@ -2094,7 +2130,7 @@ applyLangArrays(); startTranslator();
 ingestHash().then(() => { if (S.view === 'auth') render(); });
 addEventListener('hashchange', () => ingestHash().then(() => { if (S.view === 'auth') render(); }));
 render();
-Store.init().then(() => { if (S.view === 'auth') render(); initAI(); });
+Store.init().then(async () => { const ok = await resumeSession().catch(() => false); if (!ok && S.view === 'auth') render(); initAI(); });
 })();
 </script>
 </body>
