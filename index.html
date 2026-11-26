@@ -381,6 +381,8 @@ function applyLangArrays() {
   document.documentElement.lang = LANG === 'kk' ? 'kk' : 'ru';
 }
 const KK = {
+  'карта?': 'карта?',
+  'Как карта называется в Apple Wallet': 'Apple Wallet-те карта қалай аталады', 'Например, Kaspi Gold или своё название': 'Мысалы, Kaspi Gold немесе өз атауыңыз', 'По этому названию оплаты Apple Pay попадают на эту карту. Несколько названий можно через запятую.': 'Осы атау бойынша Apple Pay төлемдері осы картаға түседі. Бірнеше атауды үтір арқылы жазуға болады.',
   'Пока приложение открыто, вход сохраняется. Если закрыть приложение полностью, при следующем открытии нужен пароль.': 'Қолданба ашық тұрғанда кіру сақталады. Қолданбаны толық жапсаңыз, келесі ашқанда құпиясөз қажет.', 'Никогда, пока приложение открыто': 'Қолданба ашық тұрғанда ешқашан',
   'Запомнить вход на этом устройстве': 'Осы құрылғыда кіруді есте сақтау', 'Не запоминать': 'Есте сақтамау', 'После закрытия приложения потребуется пароль.': 'Қолданбаны жапқаннан кейін құпиясөз қажет болады.', 'Вход запомнен': 'Кіру есте сақталды', 'Устройство забыто': 'Құрылғы ұмытылды',
   'Цвет карты': 'Карта түсі', 'Золото': 'Алтын', 'Серебро': 'Күміс', 'Зелёный': 'Жасыл', 'Красный': 'Қызыл', 'Голубой': 'Көгілдір', 'Чёрный': 'Қара', 'Синий': 'Көк', 'Оранжевый': 'Қызғылт сары', 'Фиолетовый': 'Күлгін', 'Розовый': 'Қызғылт',
@@ -742,7 +744,8 @@ const OUT_WORDS = /покупк|оплат|списани|снятие|пере�
 
 // Parse a bank push / SMS / Shortcuts line into a transaction draft.
 function parsePush(text, rules) {
-  const t = text.replace(/\s+/g, ' ').trim();
+  let t = text.replace(/\s+/g, ' ').trim(); let cardExplicit = '';
+  const pipe = t.lastIndexOf(' | '); if (pipe > 0) { cardExplicit = t.slice(pipe + 3).trim(); t = t.slice(0, pipe).trim(); }
   let m = t.match(AMT_RE);
   if (!m) { const m2 = t.match(/(₸|kzt)\s?([+\-−–]?\d[\d\s\u00a0\u202f.,]*\d|\d)/i); if (m2) m = Object.assign([m2[0], m2[2], m2[1]], {index: m2.index}); }
   if (!m) return null;
@@ -758,7 +761,7 @@ function parsePush(text, rules) {
   before = before.replace(/(покупка|оплата|списание|снятие наличных|снятие|пополнение|поступление|зачисление|перевод(?: от| на)?|возврат|kaspi gold|kaspi|halyk|карта|card|\*\d{4}|[:•·|])/gi, ' ').replace(/\s+/g, ' ').trim();
   let merchant = (after || before || type || 'Операция').replace(/\b([01]\d|2[0-3]):[0-5]\d\b/g, '').replace(/\d{2}\.\d{2}\.\d{2,4}/g, '').replace(/\s+/g, ' ').trim().replace(/[,;.]+$/, '').slice(0, 60).trim();
   const cardM = t.match(/\*{1,4}\s?(\d{4})/) || t.match(/(kaspi gold|kaspi red|halyk|freedom|jusan|bcc|forte|bereke|home credit|altyn|rbk)/i);
-  const card = cardM ? (cardM[1].match(/^\d{4}$/) ? '•' + cardM[1] : cap(cardM[1])) : '';
+  const card = cardExplicit || (cardM ? (cardM[1].match(/^\d{4}$/) ? '•' + cardM[1] : cap(cardM[1])) : '');
   if (cardM) merchant = merchant.replace(new RegExp(cardM[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), '').replace(/\s+/g, ' ').trim() || merchant;
   const dateM = t.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
   let d = todayISO();
@@ -1472,7 +1475,7 @@ function feedRow(t) {
   const [col, ic] = CAT_META[t.c] || CAT_META['Другое'];
   return `<button class="frow" data-tx="${esc(t.id)}">
     <span class="fico" style="background:${col}1c;color:${col}">${svgIcon(ic, 24, col)}</span>
-    <span class="minw"><span class="ft">${esc(t.c)}</span><span class="fs">${t.author && S.scope === 'family' ? `<span class="chip" style="padding:1px 7px">${esc(t.author)}</span>` : ''}${!S.filterCard && t.card ? bankBadge(t.bank ? bankByKey(t.bank) : bankOfCard(t.card), 16) : ''}<span>${esc(t.m)}</span>${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
+    <span class="minw"><span class="ft">${esc(t.c)}</span><span class="fs">${t.author && S.scope === 'family' ? `<span class="chip" style="padding:1px 7px">${esc(t.author)}</span>` : ''}${!S.filterCard && t.card ? bankBadge(t.bank ? bankByKey(t.bank) : bankOfCard(t.card), 16) : ''}${!t.card && t.wl ? `<span class="chip ex">карта?</span>` : ''}<span>${esc(t.m)}</span>${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
     <span class="fa num ${t.a > 0 ? 'in' : ''}">${money(t.a, t.a > 0)}</span>
   </button>`;
 }
@@ -1506,13 +1509,14 @@ function sheetEditCard() {
     <div class="field"><label>Цвет карты</label><div class="swatches">${Object.entries(FINISHES).map(([k, f]) => `<button type="button" data-fin="${k}" aria-pressed="${finishOf(c) === f}" aria-label="${f.n}" title="${f.n}" style="background:${f.bg}"></button>`).join('')}</div></div>
     <div class="field"><label for="ecName">Название</label><input id="ecName" type="text" value="${esc(c.name)}" required></div>
     <div class="field"><label for="ecLast">Последние 4 цифры</label><input id="ecLast" type="text" inputmode="numeric" maxlength="4" value="${esc(c.last4 || '')}"></div>
+    <div class="field"><label for="ecWallet">Как карта называется в Apple Wallet</label><input id="ecWallet" type="text" placeholder="Например, Kaspi Gold или своё название" value="${esc(c.wallet || '')}"><span class="small muted">По этому названию оплаты Apple Pay попадают на эту карту. Несколько названий можно через запятую.</span></div>
     <button class="btn primary block">Сохранить</button>
     <button type="button" class="btn block" data-act="cards">Все карты</button></form>`, sh => {
     let fin = c.finish || ''; sh.querySelectorAll('[data-fin]').forEach(b => b.onclick = () => { fin = b.dataset.fin; sh.querySelectorAll('[data-fin]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
     $('#fEc', sh).onsubmit = e => {
       e.preventDefault(); const nn = $('#ecName', sh).value.trim(); if (!nn) return; if (fin) c.finish = fin;
       if (nn !== c.name) { if (cardsList().some(x => x.name === nn)) return toast('Такое название уже есть'); const yms = new Set(); S.txs.forEach(t => { if (t.card === c.name) { t.card = nn; yms.add(ymOf(t.d)); } }); markDirty(...yms); c.name = nn; S.filterCard = nn; }
-      c.last4 = $('#ecLast', sh).value.replace(/\D/g, '').slice(0, 4);
+      c.last4 = $('#ecLast', sh).value.replace(/\D/g, '').slice(0, 4); c.wallet = $('#ecWallet', sh).value.trim().slice(0, 120);
       const v = $('#ecBal', sh).value.trim();
       if (v) { const now = new Date(); c.bal = {value: toNum(v), at: `${todayISO()}T${pad(now.getHours())}:${pad(now.getMinutes())}`}; } else delete c.bal;
       markSettings(); closeSheet(); render(); toast('Сохранено');
@@ -1721,7 +1725,7 @@ async function drainInbox() {
       const d = await decJSON(aes, x);
       const t = parsePush(d.text, S.settings.rules); if (!t) continue;
       if (d.d) { t.d = d.d; t.tm = d.tm || t.tm; }
-      t.card = matchCard(t.card, d.text); t.src = 'applepay';
+      { const lbl = t.card; t.card = matchCard(lbl, d.text); if (!t.card && lbl) t.wl = lbl; } t.src = 'applepay';
       if (t.balAfter !== null && isFinite(t.balAfter)) lastBal = {card: t.card, value: t.balAfter, at: txKey(t)};
       delete t.balAfter; rows.push(t);
     } catch {}
@@ -1745,7 +1749,7 @@ async function ingestHash() {
   try { history.replaceState(null, '', location.pathname + location.search); } catch {}
   const t = parsePush(text, {}); if (!t) { S.payNote = {bad: true, text}; return; }
   const now = new Date(); const rec = {text, d: todayISO(), tm: `${pad(now.getHours())}:${pad(now.getMinutes())}`};
-  if (S.key) { t.card = matchCard(t.card, text); t.src = 'applepay'; delete t.balAfter; addTxs([t]); render(); toast(`Сохранено: ${money(t.a, t.a > 0)}`); return; }
+  if (S.key) { { const lbl = t.card; t.card = matchCard(lbl, text); if (!t.card && lbl) t.wl = lbl; } t.src = 'applepay'; delete t.balAfter; addTxs([t]); render(); toast(`Сохранено: ${money(t.a, t.a > 0)}`); return; }
   const sealed = await sealForInbox(rec).catch(() => false);
   if (sealed) S.payNote = {ok: true, a: t.a, m: t.m};
   else { S.pendingPay = text; S.payNote = {first: true, a: t.a, m: t.m}; }
@@ -1755,12 +1759,13 @@ function sheetApplePay() {
   const link = appLink();
   openSheet(`<div class="stack"><div class="spread"><h2>Apple Pay автоматически</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
     <p class="small muted">Работает через приложение «Команды» на iPhone и только для оплат Apple Pay. Переводы и оплаты внутри банковских приложений добавляйте выпиской.</p>
+    <p class="small">Карта определяется по её названию в Wallet. Если оно отличается от названия в приложении, впишите его в настройках карты: шестерёнка → «Как карта называется в Apple Wallet».</p>
     <div class="card stack"><div class="lbl">Ссылка на ваше приложение</div><div class="reckey" id="apLink" style="font-size:13px;text-align:left"></div><button class="btn" id="apCopy">Скопировать ссылку</button></div>
     <div class="card stack"><h3>Способ 1. Сразу после оплаты</h3>
       <ol class="steps">
         <li>«Команды» → «Автоматизация» → «+» → «Транзакция».</li>
         <li>Выберите карты из Wallet, включите «Запускать сразу» и нажмите «Далее» → «Новая пустая команда».</li>
-        <li>Добавьте «Текст» и соберите строку: <b>Покупка</b>, затем переменные «Сумма», «Продавец», «Карта» из «Входные данные команды», через пробел.</li>
+        <li>Добавьте «Текст» и соберите строку: <b>Покупка</b>, переменные «Сумма» и «Продавец», затем <b> | </b> (пробел, вертикальная черта, пробел) и переменная «Карта». Все переменные — из «Входные данные команды».</li>
         <li>Добавьте «Кодировать URL», вход — этот текст.</li>
         <li>Добавьте ещё «Текст»: ссылка выше, сразу за ней <b>#pay=</b> и переменная «Закодированный URL».</li>
         <li>Добавьте «Открыть URL-адреса» с этим текстом.</li>
@@ -1792,7 +1797,7 @@ function parseAkshaLines(text, rules) {
     if (!isFinite(n) || !n) { skipped++; continue; }
     const a = /^\s*[+]/.test(amt) ? Math.abs(n) : -Math.abs(n);
     const merchant = (mer || 'Apple Pay').slice(0, 60);
-    rows.push({id: uid8(), d, tm, a, m: merchant, c: guessCat(merchant, '', a, rules), card: matchCard(card, card), src: 'applepay'});
+    const mc = matchCard(card, card); rows.push({id: uid8(), d, tm, a, m: merchant, c: guessCat(merchant, '', a, rules), card: mc, wl: !mc && card ? card : undefined, src: 'applepay'});
   }
   return {rows, skipped};
 }
@@ -1951,7 +1956,7 @@ function sheetAdd(mode = 'push', initSign = -1) {
         $('#pushPrev', sh).innerHTML = draft ? `<div class="stack small">${txRow(draft)}<p class="muted">Проверьте сумму и магазин. Категорию можно поменять после сохранения.</p></div>` : (ta.value.trim() ? '<div class="banner warn">Не нашли сумму в тенге. Нужен текст вида «4 590 ₸».</div>' : '');
       };
       ta.addEventListener('input', upd); ta.addEventListener('paste', () => setTimeout(upd, 0));
-      $('#fPush', sh).onsubmit = e => { e.preventDefault(); if (!draft) return; draft.card = matchCard(draft.card, ta.value); const ba = draft.balAfter; delete draft.balAfter; const cc = cardsList().find(c => c.name === draft.card); if (cc && ba !== null && isFinite(ba)) { cc.bal = {value: ba, at: txKey(draft)}; markSettings(); } const n = addTxs([draft]); closeSheet(); afterChange(n ? `Сохранено: ${money(draft.a, draft.a > 0)}` : 'Такая операция уже есть'); };
+      $('#fPush', sh).onsubmit = e => { e.preventDefault(); if (!draft) return; { const lbl = draft.card; draft.card = matchCard(lbl, ta.value); if (!draft.card && lbl) draft.wl = lbl; } const ba = draft.balAfter; delete draft.balAfter; const cc = cardsList().find(c => c.name === draft.card); if (cc && ba !== null && isFinite(ba)) { cc.bal = {value: ba, at: txKey(draft)}; markSettings(); } const n = addTxs([draft]); closeSheet(); afterChange(n ? `Сохранено: ${money(draft.a, draft.a > 0)}` : 'Такая операция уже есть'); };
     }
     if (mode === 'statement') {
       let stCard = cardsList()[0]?.name || ''; bindPick(sh, 'data-pickcard', v => stCard = v);
@@ -1988,7 +1993,19 @@ function sheetAdd(mode = 'push', initSign = -1) {
     }
   });
 }
-function matchCard(label, raw = '') { const cards = cardsList(); if (!cards.length) return label; if (label && cards.some(c => c.name === label)) return label; const l4 = (label || '').match(/^•(\d{4})$/); if (l4) { const hit4 = cards.find(c => c.last4 === l4[1]); if (hit4) return hit4.name; } const b = guessBank(raw + ' ' + label); const hit = b.k !== 'other' && cards.find(c => c.bank === b.k); return hit ? hit.name : (label || (cards.length === 1 ? cards[0].name : '')); }
+function matchCard(label, raw = '') {
+  const cards = cardsList(); if (!cards.length) return label;
+  const norm = x => (x || '').toLowerCase().replace(/\s+/g, ' ').trim(); const L = norm(label);
+  if (L) {
+    const exact = cards.find(c => norm(c.name) === L || (c.wallet || '').split(',').map(norm).filter(Boolean).includes(L)); if (exact) return exact.name;
+    const l4 = label.match(/(?:^•|\*{1,4}\s?|\b)(\d{4})$/); if (l4) { const hit4 = cards.find(c => c.last4 === l4[1]); if (hit4) return hit4.name; }
+    const part = cards.find(c => (c.wallet || '').split(',').map(norm).filter(Boolean).some(w => L.includes(w) || w.includes(L)) || (norm(c.name).length > 3 && L.includes(norm(c.name)))); if (part) return part.name;
+  }
+  const b = guessBank(raw + ' ' + label); const same = b.k !== 'other' ? cards.filter(c => c.bank === b.k) : [];
+  if (same.length === 1) return same[0].name;
+  if (!L && cards.length === 1) return cards[0].name;
+  return '';
+}
 function afterChange(msg) { render(); runAlerts(false) ; if (msg && !S.newAlerts) toast(msg); render(); }
 
 function sheetTx(id) {
@@ -1997,13 +2014,20 @@ function sheetTx(id) {
     <div class="spread"><h2 class="minw" style="overflow:hidden;text-overflow:ellipsis">${esc(t.m)}</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
     <div class="row" style="gap:14px"><span class="icowrap" style="width:52px;height:52px">${catIcon(t.c, 52)}${t.card ? bankBadge(bankOfCard(t.card), 20) : ''}</span><div class="big num" style="font-size:30px;font-weight:700;color:${t.a > 0 ? 'var(--good)' : 'var(--ink)'}">${money(t.a, t.a > 0)}</div></div>
     <p class="muted small">${esc(dayLabel(t.d))}${t.tm ? ', ' + esc(t.tm) : ''}${t.card ? ' · ' + esc(t.card) : ''} · ${esc({push: 'из пуша', statement: 'из выписки', manual: 'вручную', example: 'пример'}[t.src] || '')}</p>
+    ${!t.card && t.wl ? `<div class="banner warn">Карта «${esc(t.wl)}» из Apple Wallet не найдена. Выберите, какая это карта, и приложение запомнит её название.</div>` : ''}
+    <div class="field"><label>Карта</label>${cardPick(t.card)}</div>
     <div class="field"><label>Категория</label>${catGrid(t.c)}</div>
     <label class="row small"><input type="checkbox" id="txRule" checked> Запомнить для «${esc(t.m)}»</label>
     <button class="btn primary block" id="txSave">Сохранить</button>
     <button class="btn danger block" id="txDel">Удалить операцию</button>
   </div>`, sh => {
-    let pickedCat = t.c; bindPick(sh, 'data-pickcat', v => pickedCat = v);
+    let pickedCat = t.c, pickedCard = t.card; bindPick(sh, 'data-pickcat', v => pickedCat = v); bindPick(sh, 'data-pickcard', v => pickedCard = v);
     $('#txSave', sh).onclick = () => {
+      if (pickedCard && pickedCard !== t.card) {
+        const wl = t.wl; t.card = pickedCard; delete t.wl; markDirty(ymOf(t.d));
+        if (wl) { const cc = cardsList().find(c => c.name === pickedCard); if (cc) { const al = (cc.wallet || '').split(',').map(x => x.trim()).filter(Boolean); if (!al.some(x => x.toLowerCase() === wl.toLowerCase())) al.push(wl); cc.wallet = al.join(', '); markSettings(); }
+          S.txs.forEach(x => { if (!x.card && x.wl && x.wl.toLowerCase() === wl.toLowerCase()) { x.card = pickedCard; delete x.wl; markDirty(ymOf(x.d)); } }); }
+      }
       const c = pickedCat; const key = t.m.trim().toLowerCase();
       if ($('#txRule', sh).checked) { S.settings.rules[key] = c; markSettings(); S.txs.forEach(x => { if (x.m.trim().toLowerCase() === key && x.c !== c) { x.c = c; markDirty(ymOf(x.d)); } }); }
       t.c = c; markDirty(ymOf(t.d)); closeSheet(); afterChange('Категория обновлена');
