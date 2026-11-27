@@ -508,7 +508,7 @@ const KK_RX = [
   [/^(.+) Обычная покупка у вас около (.+)\.$/, (m, a, b) => `${a} Әдетте бір сатып алуыңыз шамамен ${b}.`],
   [/^Скоро спишется (.+)$/, (m, a) => `Жақында ${a} төлемі шегеріледі`],
   [/^Около (\d+) числа, примерно (.+)\. Похоже на регулярный платёж\.$/, (m, a, b) => `Шамамен ${a}-күні, ${b} шамасында. Тұрақты төлемге ұқсайды.`],
-  [/^Найдено (\d+) (?:операция|операции|операций) с (.+) по (.+)\. Расходы (.+?)\.(.*)$/, (m, a, b, c, d, e) => `${b} – ${c} аралығында ${a} операция табылды. Шығыс ${d}.${e.replace(' Не распознано строк:', ' Танылмаған жолдар:')}`]
+  [/^Найдено (\d+) (?:операция|операции|операций) с (.+) по (.+). Списания (.+?)\.(.*)$/, (m, a, b, c, d, e) => `${b} – ${c} аралығында ${a} операция табылды. Барлық шығыс ${d}.${e.replace(' Не распознано строк:', ' Танылмаған жолдар:')}`]
 ];
 function trText(s) {
   if (LANG !== 'kk' || !s) return s;
@@ -620,11 +620,12 @@ const Store = {
 const CATS = ['Продукты','Кафе и рестораны','Доставка еды','Такси и транспорт','Покупки','Связь и подписки','Коммуналка','Здоровье','Развлечения','Кредиты и долги','Переводы','Наличные','Доход','Между своими счетами','Другое'];
 const NOT_SPEND = new Set(['Доход', 'Между своими счетами']);
 const RULES = [
-  [/magnum|small|galmart|anvar|арбуз|arbuz|metro|ramstore|супермаркет|продукт|интерфуд|toimart/i, 'Продукты'],
-  [/wolt|glovo|yandex\s?eda|яндекс\s?еда|chocofood|доставк/i, 'Доставка еды'],
-  [/yandex[\s.]?go|яндекс[\s.]?go|yandex\.?taxi|такси|uber|indrive|индрайв|onay|онай|bolt|азс|helios|sinooil|gazprom|qazaq oil|parking|парков/i, 'Такси и транспорт'],
+  [/magnum|small|galmart|anvar|арбуз|arbuz|metro|ramstore|супермаркет|supermarket|minimarket|market|маркет|продукт|интерфуд|toimart|даркстор/i, 'Продукты'],
+  [/погашени[ея] кредита|перевод на кредит|кредит наличными|зачислени[ея] кредита|вознаграждение за наличн/i, 'Кредиты и долги'],
+  [/wolt|glovo|yandex[\s.]?eda|яндекс[\s.]?еда|yandex[\s.]?deliver|chocofood|доставк|dodo/i, 'Доставка еды'],
+  [/yandex[\s.]?go|яндекс[\s.]?go|yandex\.?taxi|такси|uber|indrive|индрайв|onay|онай|bolt|азс|azs|fuel|petrol|helios|sinooil|gazprom|qazaq oil|parking|парков|паркинг|автомойк/i, 'Такси и транспорт'],
   [/coffee|кофе|cafe|кафе|starbucks|kfc|burger|bahandi|rest|ресторан|pizza|пицц|sushi|суши|bar\b|бар\b/i, 'Кафе и рестораны'],
-  [/beeline|kcell|activ|tele2|altel|kazakhtelecom|казахтелеком|apple\.com|icloud|netflix|spotify|youtube|yandex\s?plus|яндекс\s?плюс|google\s|chatgpt|openai|anthropic|claude/i, 'Связь и подписки'],
+  [/beeline|kcell|activ|tele2|altel|kazakhtelecom|казахтелеком|apple\.com|icloud|netflix|spotify|youtube|yandex[\s.]?plus|yandex\.?360|яндекс\s?плюс|canva|apple\.com|google\s|chatgpt|openai|anthropic|claude/i, 'Связь и подписки'],
   [/алсеко|alseco|ерц|erc|ivc|ивц|коммунал|осв|ксж|кск/i, 'Коммуналка'],
   [/аптек|apteka|europharma|biosfera|invitro|инвитро|olymp|олимп|клиник|clinic|стоматолог|dent/i, 'Здоровье'],
   [/kino|кино|chaplin|kinopark|cinema|ticketon|steam|playstation/i, 'Развлечения'],
@@ -634,7 +635,8 @@ const RULES = [
 function guessCat(text, type, amount, rules) {
   const key = (text || '').trim().toLowerCase();
   if (rules && rules[key]) return rules[key];
-  if (/между своими|на свой счет|на свою карту|своими счетами/i.test(type + ' ' + text)) return 'Между своими счетами';
+  if (/между своими|на свой сч[её]т|на свою карту|своими счетами|со своего|своего сч[её]та|своих сч[её]тов|с карты другого банка/i.test(type + ' ' + text)) return 'Между своими счетами';
+  if (amount > 0 && /зачислени[ея] кредита|кредит наличными/i.test(type + ' ' + text)) return 'Кредиты и долги';
   if (amount > 0) return /возврат|refund/i.test(type + ' ' + text) ? 'Покупки' : 'Доход';
   if (/снятие|наличн/i.test(type)) return 'Наличные';
   for (const [re, c] of RULES) if (re.test(text)) return c;
@@ -877,6 +879,107 @@ function parseBCCPages(pages, rules, cardName) {
   finish(prev);
   return {rows: out, skipped};
 }
+// Column tables in bank PDFs: rows start at a date in the first column; cells may wrap onto several lines and pages.
+const CHROME = /^(АО\s|AО\s|Приложение к|Страница|стр\.|Page\s)/i;
+function pdfTable(pages, cfg) {
+  let centers = null; const rows = []; let prev = null;
+  const numOf = s => s.replace(/[\s  ]/g, '');
+  for (const items of pages) {
+    const found = {};
+    for (const [k, re] of cfg.headers) { const h = items.find(i => re.test(i.s.trim())); if (h) found[k] = h.x + (h.w || 0) / 2; }
+    if (Object.keys(found).length === cfg.headers.length) centers = found;
+    if (!centers) continue;
+    const hdrY = Math.max(-Infinity, ...items.filter(i => cfg.headers.some(([, re]) => re.test(i.s.trim()))).map(i => i.y));
+    const col = i => { const c = i.x + (i.w || 0) / 2; let best = null, bd = Infinity; for (const k in centers) { const d = Math.abs(c - centers[k]); if (d < bd) { bd = d; best = k; } } return best; };
+    const its = items.map(i => ({...i, c: col(i)}));
+    const ys = [...new Set(its.map(i => i.y))].sort((a, b) => b - a);
+    const line = y => its.filter(i => i.y === y);
+    const anchors = its.filter(i => i.c === cfg.anchorCol && cfg.anchor.test(i.s.trim()) && (hdrY === -Infinity || i.y < hdrY + 1)).sort((a, b) => b.y - a.y || a.x - b.x).filter((a, k, arr) => !k || Math.abs(arr[k - 1].y - a.y) > 2);
+    if (prev) { // a row that continues from the previous page
+      const top = anchors.length ? anchors[0].y : -Infinity; let last = null;
+      for (const y of ys) {
+        if (y <= top + 2) break;
+        const l = line(y); const txt = l.map(i => i.s).join(' ');
+        if (y >= hdrY - 1 && hdrY !== -Infinity || CHROME.test(txt.trim()) || l.some(i => !cfg.contCols.includes(i.c))) { if (last !== null) break; continue; }
+        if (last !== null && last - y > cfg.gap) break;
+        prev.lines.push(l); last = y;
+      }
+    }
+    anchors.forEach((a, k) => {
+      const next = anchors[k + 1] ? anchors[k + 1].y : -Infinity;
+      const r = {lines: []}; let last = null; rows.push(r); prev = r;
+      for (const y of ys) {
+        if (y > a.y + 2) continue; if (y <= next + 2) break;
+        const l = line(y); if (CHROME.test(l.map(i => i.s).join(' ').trim())) break;
+        if (last !== null && last - y > cfg.gap) break;
+        r.lines.push(l); last = y;
+      }
+    });
+  }
+  return rows.map(r => { const cells = {}; for (const l of r.lines) { const by = {}; l.sort((a, b) => a.x - b.x).forEach(i => (by[i.c] ||= []).push(i.s)); for (const k in by) (cells[k] ||= []).push(by[k].join(' ')); } return cells; });
+}
+const joinWrap = arr => (arr || []).reduce((acc, l) => acc + (acc && !/^\p{L}{1,2}$/u.test(l.trim()) ? ' ' : '') + l.trim(), '').replace(/\s+/g, ' ').trim();
+const cellNum = arr => { const t = (arr || []).join('').replace(/kzt|₸|тг/ig, '').replace(/[\s  ]/g, '').replace(',', '.').replace(/[−–]/, '-'); return /^[+-]?\d+(\.\d+)?$/.test(t) ? parseFloat(t) : NaN; };
+const isoDate = s => { let m = s.match(/(\d{2})\.(\d{2})\.(\d{4}|\d{2})/); if (m) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2]}-${m[1]}`; m = s.match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : ''; };
+const MCC = [[/^(5411|5412|5422|5441|5451|5462|5499|5311|5331)$/, 'Продукты'], [/^(5812|5813|5814)$/, 'Кафе и рестораны'], [/^(4121|4111|4131|4789|5541|5542|7523|5172)$/, 'Такси и транспорт'], [/^(4812|4814|4899|5734|5815|5816|5817|5818|7372)$/, 'Связь и подписки'], [/^(5912|8011|8021|8062|8071|8099|5122)$/, 'Здоровье'], [/^(7832|7922|7991|7996|7997|7999|7994)$/, 'Развлечения'], [/^(4900)$/, 'Коммуналка'], [/^(6010|6011)$/, 'Наличные']];
+const mccCat = code => { for (const [re, c] of MCC) if (re.test(code || '')) return c; return /^5\d{3}$/.test(code || '') ? 'Покупки' : ''; };
+function bankRow(d, a, merchant, type, cardName, rules, extra = {}) {
+  merchant = (merchant || type || 'Операция').replace(/\s+/g, ' ').trim().slice(0, 60); merchant = merchant.charAt(0).toUpperCase() + merchant.slice(1);
+  let c = guessCat(merchant, type, a, rules);
+  if (a > 0 && /покупк|оплат/i.test(type) && !(rules && rules[merchant.toLowerCase()])) c = guessCat(merchant, '', -1, rules) === 'Другое' ? 'Покупки' : guessCat(merchant, '', -1, rules);
+  if (c === 'Другое' && extra.mcc) c = mccCat(extra.mcc) || c;
+  return {id: uid8(), d, tm: extra.tm || '', a: Math.round(a * 100) / 100, m: merchant, c, card: cardName || '', src: 'statement'};
+}
+function parseKaspi(pages, rules, cardName) {
+  const rows = pdfTable(pages, {headers: [['d', /^Дата$/], ['amt', /^Сумма$/], ['op', /^Операция$/], ['det', /^Детали$/]], anchorCol: 'd', anchor: /^\d{2}\.\d{2}\.\d{2}$/, contCols: ['op', 'det'], gap: 13});
+  const out = []; let skipped = 0;
+  for (const r of rows) {
+    const a = cellNum(r.amt), d = isoDate((r.d || [])[0] || '');
+    if (!isFinite(a) || !a || !d) { skipped++; continue; }
+    out.push(bankRow(d, a, joinWrap(r.det), joinWrap(r.op), cardName, rules));
+  }
+  return {rows: out, skipped};
+}
+function parseHalyk(pages, rules, cardName) {
+  const rows = pdfTable(pages, {headers: [['d', /^Дата$/], ['desc', /^Описание операции$/], ['sum', /^Сумма$/], ['cur', /^Валюта$/], ['in', /^Приход в$/], ['out', /^Расход в$/], ['fee', /^Комиссия$/], ['acc', /карточки\/счета/]], anchorCol: 'd', anchor: /^\d{2}\.\d{2}\.\d{4}$/, contCols: ['desc', 'acc'], gap: 11});
+  const out = []; let skipped = 0;
+  for (const r of rows) {
+    const d = isoDate((r.d || [])[0] || ''); const inc = cellNum(r.in), exp = cellNum(r.out), fee = cellNum(r.fee);
+    const a = (isFinite(inc) ? inc : 0) + (isFinite(exp) ? exp : 0);
+    if (!d || !a) { skipped++; continue; }
+    let desc = joinWrap(r.desc); let type = desc, merchant = desc;
+    const m = desc.match(/^Операция (?:оплаты|возврата|отмены)?\s*у коммерсанта\s+(.+)$/i);
+    if (m) { type = /возврат|отмен/i.test(desc) ? 'возврат' : 'покупка'; merchant = m[1]; }
+    out.push(bankRow(d, a, merchant, type, cardName, rules));
+    if (isFinite(fee) && fee) out.push(bankRow(d, -Math.abs(fee), 'Комиссия банка', 'комиссия', cardName, rules));
+  }
+  return {rows: out, skipped};
+}
+function parseHomeCredit(pages, rules, cardName) {
+  const rows = pdfTable(pages, {headers: [['d', /^Дата$/], ['det', /^Детали операции$/], ['amt', /^C?Сумма$|^Cумма$/], ['bon', /^Бонусы$/], ['mcc', /^MCC$/]], anchorCol: 'd', anchor: /^\d{2}\.\d{2}\.\d{4}$/, contCols: ['det'], gap: 15});
+  const out = []; let skipped = 0;
+  for (const r of rows) {
+    const d = isoDate((r.d || [])[0] || ''); const a = cellNum(r.amt);
+    if (!d || !isFinite(a) || !a) { skipped++; continue; }
+    const det = (r.det || []).map(s => s.trim()).filter(Boolean);
+    const type = det.length > 1 ? det[det.length - 1] : ''; const merchant = joinWrap(det.length > 1 ? det.slice(0, -1) : det);
+    const tmM = ((r.d || [])[1] || '').match(/\d{2}:\d{2}/); const mcc = ((r.mcc || [])[0] || '').match(/\d{4}/);
+    out.push(bankRow(d, a, merchant, /покупк/i.test(type) ? 'покупка' : type, cardName, rules, {tm: tmM ? tmM[0] : '', mcc: mcc ? mcc[0] : ''}));
+  }
+  return {rows: out, skipped};
+}
+function parseBankPdf(lines, rules, card) {
+  const head = lines.slice(0, 40).join(' ') + ' ' + lines.slice(-12).join(' ');
+  const tries = [];
+  if (/kaspi/i.test(head)) tries.push(parseKaspi);
+  if (/народный банк|halyk/i.test(head)) tries.push(parseHalyk);
+  if (/home credit|хоум кредит/i.test(head)) tries.push(parseHomeCredit);
+  if (/центркредит/i.test(head)) tries.push(parseBCCPages);
+  tries.push(p => parseStatementLines(lines, rules, card));
+  for (const f of [parseKaspi, parseHalyk, parseHomeCredit, parseBCCPages]) if (!tries.includes(f)) tries.push(f);
+  for (const f of tries) { try { const r = f(lines.pages, rules, card); if (r.rows.length) return r; } catch (e) {} }
+  return {rows: [], skipped: 0};
+}
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); }); }
 async function pdfLines(file) {
   if (!window.pdfjsLib) {
@@ -888,7 +991,7 @@ async function pdfLines(file) {
   const lines = []; lines.pages = [];
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p); const tc = await page.getTextContent();
-    lines.pages.push(tc.items.filter(it => it.str && it.str.trim()).map(it => ({x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), s: it.str})));
+    lines.pages.push(tc.items.filter(it => it.str && it.str.trim()).map(it => ({x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), w: Math.round(it.width || 0), s: it.str})));
     const rows = new Map();
     for (const it of tc.items) { if (!it.str || !it.str.trim()) continue; const y = Math.round(it.transform[5] / 2); if (!rows.has(y)) rows.set(y, []); rows.get(y).push([it.transform[4], it.str]); }
     [...rows.entries()].sort((a, b) => b[0] - a[0]).forEach(([, items]) => lines.push(items.sort((a, b) => a[0] - b[0]).map(x => x[1]).join(' ')));
@@ -1411,7 +1514,7 @@ function slideHTML(x) {
   const eye = `<button class="peye" data-act="toggleBal" aria-label="${hidden ? 'Показать баланс' : 'Скрыть баланс'}">${svgIcon(hidden ? 'eyeoff' : 'eye', 18, '#fff')}</button>`;
   if (x.type === 'add') return `<div class="slide"><button class="pcard addc" data-act="cards" style="width:100%">${svgIcon('plus', 28, 'var(--accent)')}<span>Добавить карту</span></button></div>`;
   if (x.type === 'family') {
-    const rows = famRows().filter(periodOk); const inc = rows.filter(t => t.a > 0 && t.c !== 'Между своими счетами').reduce((s, t) => s + t.a, 0); const exp = rows.filter(t => t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
+    const rows = famRows().filter(periodOk); const inc = rows.filter(t => t.a > 0 && t.c !== 'Между своими счетами' && t.c !== 'Кредиты и долги').reduce((s, t) => s + t.a, 0); const exp = rows.filter(t => t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
     return `<div class="slide"><section class="pcard" style="background:linear-gradient(150deg,#E07A4F,#9C3D1C)">
       <div class="ptop"><div class="pname"><span class="bbadge" style="width:30px;height:30px;background:rgba(255,255,255,.2)">${svgIcon('users', 18, '#fff')}</span><span>Семья</span></div><button class="pgear" data-act="family" aria-label="Семейный бюджет">${svgIcon('gear', 18, '#fff')}</button></div>
       <div><div class="plbl">Общий бюджет</div><div class="pbal num">${hidden ? '••••••' : money(Math.round(inc - exp), true)}${eye}</div></div>
@@ -1436,7 +1539,7 @@ function slideHTML(x) {
 function stackHTML(rows) {
   const sl = slidesList(); const idx = currentSlideIdx(sl);
   const fmScope = S.scope === 'family' && fam();
-  const inc = rows.filter(t => t.a > 0 && t.c !== 'Между своими счетами').reduce((s, t) => s + t.a, 0);
+  const inc = rows.filter(t => t.a > 0 && t.c !== 'Между своими счетами' && t.c !== 'Кредиты и долги').reduce((s, t) => s + t.a, 0);
   const exp = rows.filter(t => t.a < 0 && !NOT_SPEND.has(t.c)).reduce((s, t) => s - t.a, 0);
   const hidden = S.hideBal;
   return `<div class="carousel" id="car" aria-label="Карты" data-idx="${idx}">${sl.map(slideHTML).join('')}</div>
@@ -2031,15 +2134,13 @@ function sheetAdd(mode = 'push', initSign = -1) {
           const card = stCard;
           let res;
           if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
-            const lines = await pdfLines(f);
-            res = parseStatementLines(lines, S.settings.rules, card);
-            if (!res.rows.length || /центркредит/i.test(lines.slice(0, 15).join(' '))) { const b = parseBCCPages(lines.pages, S.settings.rules, card); if (b.rows.length) res = b; }
+            res = parseBankPdf(await pdfLines(f), S.settings.rules, card);
           } else res = parseCSV(await f.text(), S.settings.rules, card);
           if (!res.rows.length) { prev.innerHTML = `<div class="banner bad">Не нашли операций в этом файле. Пришлите формат выписки, и мы научим приложение его читать.</div>`; return; }
           const spend = res.rows.filter(r => r.a < 0).reduce((s, r) => s - r.a, 0);
           const dates = res.rows.map(r => r.d).sort();
           prev.innerHTML = `<div class="stack">
-            <div class="banner good">Найдено ${res.rows.length} ${plural(res.rows.length, 'операция', 'операции', 'операций')} с ${esc(dayLabel(dates[0]).toLowerCase())} по ${esc(dayLabel(dates[dates.length - 1]).toLowerCase())}. Расходы ${money(spend)}.${res.skipped ? ` Не распознано строк: ${res.skipped}.` : ''}</div>
+            <div class="banner good">Найдено ${res.rows.length} ${plural(res.rows.length, 'операция', 'операции', 'операций')} с ${esc(dayLabel(dates[0]).toLowerCase())} по ${esc(dayLabel(dates[dates.length - 1]).toLowerCase())}. Списания ${money(spend)}.${res.skipped ? ` Не распознано строк: ${res.skipped}.` : ''}</div>
             <div class="tbl"><table><thead><tr><th>Дата</th><th>Сумма</th><th>Описание</th><th>Категория</th></tr></thead><tbody>${res.rows.slice(0, 8).map(r => `<tr><td class="num">${esc(r.d.split('-').reverse().join('.'))}</td><td class="num">${money(r.a, r.a > 0)}</td><td>${esc(r.m)}</td><td>${esc(r.c)}</td></tr>`).join('')}</tbody></table></div>
             ${res.rows.length > 8 ? `<p class="small muted">и ещё ${res.rows.length - 8}</p>` : ''}
             <button class="btn primary block" id="stImport">Импортировать</button></div>`;
