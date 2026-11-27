@@ -165,6 +165,7 @@ pre.peek{white-space:pre-wrap;word-break:break-all;font-size:12px;background:var
 .bankgrid button{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13px;min-width:0}
 .cardpick{display:flex;gap:8px;overflow-x:auto;padding:2px}
 .cardpick button{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font-weight:600;font-size:13px;white-space:nowrap}
+.anfilter{margin:0 -16px;padding:2px 16px;scrollbar-width:none;scroll-snap-type:x proximity}.anfilter::-webkit-scrollbar{display:none}.anfilter button{scroll-snap-align:start;flex:none}
 .amtbig{font-size:40px;font-weight:700;text-align:center;border:0!important;background:transparent!important;min-height:64px;letter-spacing:-.02em}
 .stackw{display:flex;flex-direction:column;margin-top:4px}
 .peek{border:0;color:#fff;height:46px;border-radius:22px 22px 0 0;margin-bottom:-18px;padding:10px 22px 0;display:flex;justify-content:space-between;align-items:flex-start;font-weight:650;font-size:15px}
@@ -1371,8 +1372,11 @@ function viewHome() {
   const hasEx = st.rows.some(t => t.ex);
   const cmp = diff === null ? '' : `<span class="chip" style="background:${diff > 0 ? 'var(--bad-soft)' : 'var(--good-soft)'};color:${diff > 0 ? 'var(--bad)' : 'var(--good)'}">${diff > 0 ? '▲' : '▼'} ${Math.abs(diff)}%</span>`;
   const cmpTxt = diff === null ? 'Прошлого месяца для сравнения нет' : `к ${isCur ? `1–${Math.min(dayN, daysIn(ymShift(S.ym, -1)))} ${MONTHS_G[pm]}` : MONTHS[pm].toLowerCase().replace(/ь$/, 'ю').replace(/й$/, 'ю').replace(/т$/, 'ту')}`;
+  const fcards = cardsList();
+  const filt = fcards.length > 1 ? `<div class="cardpick anfilter" role="group" aria-label="Фильтр по карте"><button type="button" data-card="" aria-pressed="${!S.filterCard}">${svgIcon('wallet', 18)}Все карты</button>${fcards.map(c => `<button type="button" data-card="${esc(c.name)}" aria-pressed="${S.filterCard === c.name}">${bankBadge(bankByKey(c.bank), 20)}${esc(c.name)}</button>`).join('')}</div>` : '';
   return {html: `
   <div class="stack lg">
+    ${filt}
     ${hasEx ? '<div class="banner warn">Сейчас показан пример данных. Удалить его можно в профиле.</div>' : ''}
     <section class="hero">
       <div class="lbl">Потрачено ${isCur ? `с 1 по ${dayN} ${MONTHS_G[+S.ym.slice(5) - 1]}` : `за ${MONTHS[+S.ym.slice(5) - 1].toLowerCase()}`}${S.filterCard ? ' · ' + esc(S.filterCard) : ''}</div>
