@@ -335,6 +335,17 @@ input[type=text],input[type=password],input[type=number],input[type=date],select
 .chart-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
 .toast{border-radius:14px;background:rgba(30,30,32,.92);color:#fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 @media (prefers-reduced-motion: reduce){.pcard{transition:none}}
+/* compact, calmer type */
+body{font-size:16px}
+.num{white-space:nowrap}
+.ft,.fa{font-size:16px}
+.fs{font-size:13.5px}
+.ltitle{font-size:30px;letter-spacing:0}
+.hero .big{font-size:32px;letter-spacing:-.01em}
+h3{font-size:16px;font-weight:650}
+.list-plain > div{font-size:15px;padding:11px 0;align-items:center}
+.list-plain > div .num{font-weight:600}
+@media (max-width:380px){.hero .big{font-size:28px}}
 </style>
 </head>
 <body>
@@ -362,7 +373,13 @@ const ymLabel = ym => { const [y, m] = ym.split('-').map(Number); return `${MONT
 const daysIn = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 const nf0 = new Intl.NumberFormat('ru-RU', {maximumFractionDigits: 0});
 const nf2 = new Intl.NumberFormat('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-const money = (n, sign = false) => { const a = Math.abs(n); const s = Number.isInteger(Math.round(a*100)/100) ? nf0.format(a) : nf2.format(a); return (sign ? (n < 0 ? '−' : '+') : (n < 0 ? '−' : '')) + s + ' ₸'; };
+// Bank statements write merchants in capitals: show them as words ("TANUKI RESTAURANT" → "Tanuki Restaurant").
+function nameOf(m) {
+  m = String(m || '');
+  if (!/\p{Lu}{4,}/u.test(m) || /\p{Ll}/u.test(m)) return m;
+  return m.split(/(\s+)/).map(w => /\d/.test(w) || (w.length <= 3 && /^[A-ZА-ЯЁ.*]+$/.test(w)) ? w : w.toLowerCase().replace(/(^|[.\-"«(])(\p{L})/gu, (x, a, b) => a + b.toUpperCase())).join('');
+}
+const money = (n, sign = false) => { const a = Math.abs(n); const s = Number.isInteger(Math.round(a*100)/100) ? nf0.format(a) : nf2.format(a); return (sign ? (n < 0 ? '−' : '+') : (n < 0 ? '−' : '')) + s + '\u00a0₸'; };
 const short = n => { const a = Math.abs(n); if (a >= 1e6) return (n/1e6).toFixed(a >= 1e7 ? 0 : 1).replace('.', ',') + ' млн'; if (a >= 1e3) return Math.round(n/1e3) + ' тыс'; return String(Math.round(n)); };
 const dayLabel = iso => { const [y, m, d] = iso.split('-').map(Number); const t = todayISO(); if (iso === t) return LANG === 'kk' ? 'Бүгін' : 'Сегодня'; const yd = new Date(); yd.setDate(yd.getDate()-1); if (iso === `${yd.getFullYear()}-${pad(yd.getMonth()+1)}-${pad(yd.getDate())}`) return LANG === 'kk' ? 'Кеше' : 'Вчера'; return `${d} ${MONTHS_G[m-1]}${y !== new Date().getFullYear() ? ' ' + y : ''}`; };
 const uid8 = () => b64(rand(9)).replace(/[+/=]/g, '').slice(0, 12);
@@ -1454,7 +1471,7 @@ function viewHome() {
     <section class="card stack"><h3>Траты по дням</h3>${activityChart(S.ym)}</section>
     <section class="card stack"><h3>Траты нарастающим итогом</h3>${lineChart(S.ym)}</section>
     ${(() => { const rec = recurringList(); return rec.length ? `<section class="card stack"><div class="spread"><h3>Регулярные платежи</h3><span class="small muted num">${money(Math.round(rec.reduce((s, r) => s + r.avg, 0)))} в месяц</span></div><div class="list-plain">${rec.map(r => `<div style="align-items:center"><span class="row minw" style="gap:10px">${catIcon(r.c, 32)}<span class="minw"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.m)}</span><span class="small muted">${r.paid ? 'Оплачено в этом месяце' : `Около ${r.day} числа`}</span></span></span><span class="num">${money(Math.round(r.avg))}</span></div>`).join('')}</div></section>` : ''; })()}
-    ${tops.length ? `<section class="card stack"><h3>Где тратите больше всего</h3><div class="list-plain">${tops.map(([m, v]) => { const t0 = st.rows.find(t => t.m === m); return `<div style="align-items:center"><span class="row minw" style="gap:10px">${catIcon(t0 ? t0.c : 'Другое', 32)}<span class="minw" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m)} <span class="muted small">· ${v.n} ${plural(v.n, 'раз', 'раза', 'раз')}</span></span></span><span class="num">${money(v.s)}</span></div>`; }).join('')}</div></section>` : ''}
+    ${tops.length ? `<section class="card stack"><h3>Где тратите больше всего</h3><div class="list-plain">${tops.map(([m, v]) => { const t0 = st.rows.find(t => t.m === m); return `<div style="align-items:center"><span class="row minw" style="gap:10px">${catIcon(t0 ? t0.c : 'Другое', 32)}<span class="minw" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nameOf(m))} <span class="muted small">· ${v.n} ${plural(v.n, 'раз', 'раза', 'раз')}</span></span></span><span class="num">${money(v.s)}</span></div>`; }).join('')}</div></section>` : ''}
   </div>`};
 }
 function renderBanks() {
@@ -1521,7 +1538,7 @@ function viewList() {
 function txRow(t) {
   return `<button class="tx" data-tx="${esc(t.id)}">
     <span class="icowrap">${catIcon(t.c)}${t.card ? bankBadge(bankOfCard(t.card), 16) : ''}</span>
-    <span class="minw"><span class="m" style="display:block">${esc(t.m)}</span><span class="meta"><span>${esc(t.c)}</span>${t.card ? `<span>· ${esc(t.card)}</span>` : ''}${t.tm ? `<span>· ${esc(t.tm)}</span>` : ''}${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
+    <span class="minw"><span class="m" style="display:block">${esc(nameOf(t.m))}</span><span class="meta"><span>${esc(t.c)}</span>${t.card ? `<span>· ${esc(t.card)}</span>` : ''}${t.tm ? `<span>· ${esc(t.tm)}</span>` : ''}${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
     <span class="amt num ${t.a > 0 ? 'in' : ''}">${money(t.a, t.a > 0)}</span>
   </button>`;
 }
@@ -1699,7 +1716,7 @@ function feedRow(t) {
   const [col, ic] = CAT_META[t.c] || CAT_META['Другое'];
   return `<button class="frow" data-tx="${esc(t.id)}">
     <span class="fico" style="background:${col}1c;color:${col}">${svgIcon(ic, 24, col)}</span>
-    <span class="minw"><span class="ft">${esc(t.c)}</span><span class="fs">${t.author && S.scope === 'family' ? `<span class="chip" style="padding:1px 7px">${esc(t.author)}</span>` : ''}${!S.filterCard && t.card ? bankBadge(t.bank ? bankByKey(t.bank) : bankOfCard(t.card), 16) : ''}${!t.card && t.wl ? `<span class="chip ex">карта?</span>` : ''}<span>${esc(t.m)}</span>${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
+    <span class="minw"><span class="ft">${esc(t.c)}</span><span class="fs">${t.author && S.scope === 'family' ? `<span class="chip" style="padding:1px 7px">${esc(t.author)}</span>` : ''}${!S.filterCard && t.card ? bankBadge(t.bank ? bankByKey(t.bank) : bankOfCard(t.card), 16) : ''}${!t.card && t.wl ? `<span class="chip ex">карта?</span>` : ''}<span>${esc(nameOf(t.m))}</span>${t.ex ? '<span class="chip ex">пример</span>' : ''}</span></span>
     <span class="fa num ${t.a > 0 ? 'in' : ''}">${money(t.a, t.a > 0)}</span>
   </button>`;
 }
@@ -2267,7 +2284,7 @@ function afterChange(msg) { render(); runAlerts(false) ; if (msg && !S.newAlerts
 function sheetTx(id) {
   const t = S.txs.find(x => x.id === id); if (!t) return;
   openSheet(`<div class="stack">
-    <div class="spread"><h2 class="minw" style="overflow:hidden;text-overflow:ellipsis">${esc(t.m)}</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <div class="spread"><h2 class="minw" style="overflow:hidden;text-overflow:ellipsis">${esc(nameOf(t.m))}</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
     <div class="row" style="gap:14px"><span class="icowrap" style="width:52px;height:52px">${catIcon(t.c, 52)}${t.card ? bankBadge(bankOfCard(t.card), 20) : ''}</span><div class="big num" style="font-size:30px;font-weight:700;color:${t.a > 0 ? 'var(--good)' : 'var(--ink)'}">${money(t.a, t.a > 0)}</div></div>
     <p class="muted small">${esc(dayLabel(t.d))}${t.tm ? ', ' + esc(t.tm) : ''}${t.card ? ' · ' + esc(t.card) : ''} · ${esc({push: 'из пуша', statement: 'из выписки', manual: 'вручную', example: 'пример'}[t.src] || '')}</p>
     ${!t.card && t.wl ? `<div class="banner warn">Карта «${esc(t.wl)}» из Apple Wallet не найдена. Выберите, какая это карта, и приложение запомнит её название.</div>` : ''}
