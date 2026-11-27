@@ -814,6 +814,69 @@ function parseCSV(text, rules, cardName) {
   }
   return {rows: out, skipped};
 }
+// BCC (Банк ЦентрКредит) statement: table with ISO dates and wrapped cells.
+function parseBCCPages(pages, rules, cardName) {
+  const ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const num = s => { const t = s.replace(/kzt|₸/ig, '').replace(/[\s  ]/g, '').replace(',', '.'); return t && /^[+\-−–]?\d+(\.\d+)?$/.test(t) ? parseFloat(t.replace(/[−–]/, '-')) : NaN; };
+  let cols = [20, 84, 162, 254, 317, 374, 438, 506, 566];
+  const out = []; let skipped = 0; let prev = null;
+  const finish = r => {
+    if (!r) return;
+    const byCol = k => r.lines.map(l => l.filter(i => i.c === k).sort((a, b) => a.x - b.x).map(i => i.s).join(' ')).filter(Boolean);
+    const desc = byCol(2).reduce((acc, l) => acc + (acc && !/^\p{L}{1,2}$/u.test(l) ? ' ' : '') + l, '').replace(/\s+/g, ' ').trim();
+    const kzt = num(byCol(4).join(''));
+    const fee = num(byCol(5).join(''));
+    if (!isFinite(kzt) || kzt === 0) { skipped++; return; }
+    let type = ''; let rest = desc;
+    const om = desc.match(/^(покупк[аи]|пополнени[ея](?:\s+от)?|перевод(?:\s+(?:от|на))?|исходящий платеж|входящий платеж|снятие(?: наличных)?|оплата|платеж|платёж|возврат|списание|зачисление|поступление)(?=\s|$|[.,:])/i);
+    if (om) { type = om[1]; rest = desc.slice(om[0].length).trim(); }
+    rest = rest.split(/,|\s(?:по\s)?(?:ИИН|БИН|счет|счёт|Реф|Плательщик)(?=[\s.,:]|$)/i)[0].replace(/^(C2B|P2P)\s*/i, '').replace(/[.:;\s]+$/, '').trim();
+    let merchant = (rest || type || 'Операция').replace(/\s+/g, ' ').slice(0, 60); merchant = merchant.charAt(0).toUpperCase() + merchant.slice(1);
+    if (/^исходящий платеж/i.test(type) && !rest) merchant = 'Платёж';
+    const d = r.date;
+    out.push({id: uid8(), d, tm: '', a: Math.round(kzt * 100) / 100, m: merchant, c: guessCat(merchant, type, kzt, rules), card: cardName || '', src: 'statement'});
+    if (isFinite(fee) && fee !== 0) out.push({id: uid8(), d, tm: '', a: -Math.abs(fee), m: 'Комиссия банка', c: guessCat('Комиссия', 'комиссия', -1, rules), card: cardName || '', src: 'statement'});
+  };
+  for (const items of pages) {
+    const hdr = items.filter(i => /^(Описание|Сумма в|Комиссия,?|Кешбэк)$/.test(i.s.trim()));
+    if (hdr.length >= 4) {
+      const xs = hdr.map(i => i.x).sort((a, b) => a - b);
+      const sums = items.filter(i => i.s.trim() === 'Сумма в').map(i => i.x).sort((a, b) => a - b);
+      const dsc = items.find(i => i.s.trim() === 'Описание'); const fe = items.find(i => /^Комиссия/.test(i.s.trim())); const cb = items.find(i => /^Кешбэк/.test(i.s.trim()));
+      if (dsc && sums.length >= 2 && fe && cb) cols = [cols[0], cols[1], dsc.x - 18, sums[0] - 9, sums[1] - 4, fe.x - 6, cb.x - 2, cb.x + 48, cb.x + 126];
+    }
+    const col = x => { let b = 0; for (let k = 1; k < cols.length; k++) if (x >= cols[k] - 3) b = k; return b; };
+    const its = items.map(i => ({...i, c: col(i.x)}));
+    const anchors = its.filter(i => i.c === 0 && ISO.test(i.s.trim())).sort((a, b) => b.y - a.y);
+    const lineYs = [...new Set(its.map(i => i.y))].sort((a, b) => b - a);
+    const lineAt = y => its.filter(i => i.y === y);
+    // continuation of previous page's last row
+    if (prev && anchors.length !== 0 || prev) {
+      const top = anchors.length ? anchors[0].y : -Infinity;
+      let lastY = null;
+      for (const y of lineYs) {
+        if (y <= top + 2) break;
+        const l = lineAt(y).filter(i => i.c >= 2 && i.c <= 6);
+        if (!l.length || l.length !== lineAt(y).length) { if (lastY !== null) break; else continue; }
+        if (lastY !== null && lastY - y > 16) break;
+        prev.lines.push(l); lastY = y;
+      }
+    }
+    anchors.forEach((a, k) => {
+      if (prev) finish(prev);
+      const next = anchors[k + 1] ? anchors[k + 1].y : -Infinity;
+      const r = {date: a.s.trim(), lines: []}; let lastY = null;
+      for (const y of lineYs) {
+        if (y > a.y + 2) continue; if (y <= next + 2) break;
+        if (lastY !== null && lastY - y > 16) break;
+        r.lines.push(lineAt(y).filter(i => i.c >= 1)); lastY = y;
+      }
+      prev = r;
+    });
+  }
+  finish(prev);
+  return {rows: out, skipped};
+}
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); }); }
 async function pdfLines(file) {
   if (!window.pdfjsLib) {
@@ -822,9 +885,10 @@ async function pdfLines(file) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
   const doc = await window.pdfjsLib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
-  const lines = [];
+  const lines = []; lines.pages = [];
   for (let p = 1; p <= doc.numPages; p++) {
     const page = await doc.getPage(p); const tc = await page.getTextContent();
+    lines.pages.push(tc.items.filter(it => it.str && it.str.trim()).map(it => ({x: Math.round(it.transform[4]), y: Math.round(it.transform[5]), s: it.str})));
     const rows = new Map();
     for (const it of tc.items) { if (!it.str || !it.str.trim()) continue; const y = Math.round(it.transform[5] / 2); if (!rows.has(y)) rows.set(y, []); rows.get(y).push([it.transform[4], it.str]); }
     [...rows.entries()].sort((a, b) => b[0] - a[0]).forEach(([, items]) => lines.push(items.sort((a, b) => a[0] - b[0]).map(x => x[1]).join(' ')));
@@ -1965,7 +2029,12 @@ function sheetAdd(mode = 'push', initSign = -1) {
         prev.innerHTML = '<div class="banner">Читаем файл…</div>';
         try {
           const card = stCard;
-          const res = /\.pdf$/i.test(f.name) || f.type === 'application/pdf' ? parseStatementLines(await pdfLines(f), S.settings.rules, card) : parseCSV(await f.text(), S.settings.rules, card);
+          let res;
+          if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+            const lines = await pdfLines(f);
+            res = parseStatementLines(lines, S.settings.rules, card);
+            if (!res.rows.length || /центркредит/i.test(lines.slice(0, 15).join(' '))) { const b = parseBCCPages(lines.pages, S.settings.rules, card); if (b.rows.length) res = b; }
+          } else res = parseCSV(await f.text(), S.settings.rules, card);
           if (!res.rows.length) { prev.innerHTML = `<div class="banner bad">Не нашли операций в этом файле. Пришлите формат выписки, и мы научим приложение его читать.</div>`; return; }
           const spend = res.rows.filter(r => r.a < 0).reduce((s, r) => s - r.a, 0);
           const dates = res.rows.map(r => r.d).sort();
