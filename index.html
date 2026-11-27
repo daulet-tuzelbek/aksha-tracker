@@ -556,9 +556,39 @@ const normRec = s => s.toUpperCase().replace(/[^A-Z0-9]/g, '').match(/.{1,4}/g)?
 
 // ───────────────────────── storage backends ─────────────────────────
 // Server side only ever receives ciphertext + event log (type, time). Never amounts, merchants or keys.
+// Own server (same origin as the page): /api/* stores the same ciphertext the device produces.
+const SRV = {tok: () => LS.get('aksha:srvtok'), set: t => t ? LS.set('aksha:srvtok', t) : LS.del('aksha:srvtok')};
+async function api(method, path, body) {
+  const h = {}; const t = SRV.tok(); if (t) h.Authorization = 'Bearer ' + t;
+  if (method !== 'GET' && method !== 'DELETE') { h['Content-Type'] = 'application/json'; body = JSON.stringify(body || {}); } else body = undefined;
+  const r = await fetch(path, {method, headers: h, body, cache: 'no-store'});
+  if (r.status === 401 && !/\/api\/(login|login-rec|signup|session)$/.test(path) && S.key) setTimeout(() => { lock('expired'); toast('Сессия истекла, войдите снова'); }, 0);
+  if (!r.ok) { const e = new Error('api ' + r.status); e.status = r.status; throw e; }
+  return r.json();
+}
+async function authSecret(secret, id, kind) {
+  const base = await crypto.subtle.importKey('raw', te.encode(secret), 'PBKDF2', false, ['deriveBits']);
+  return b64(await crypto.subtle.deriveBits({name: 'PBKDF2', salt: te.encode(`aksha-${kind}|${id}`), iterations: KDF_ITER, hash: 'SHA-256'}, base, 256));
+}
+// Family documents on the own server, with the same small interface the page uses for the Claude store.
+const famShim = {collection(path) {
+  const base = '/api/fam/' + path.split('/')[1];
+  return {
+    doc: id => ({set: data => api('PUT', base + '/' + id, {data}), delete: () => api('DELETE', base + '/' + id)}),
+    async get() { return {docs: (await api('GET', base)).map(d => ({id: d.id, data: () => d.data}))}; },
+    onSnapshot(cb, err) { let stop = false, t = null; const tick = async () => { if (stop) return; try { cb(await this.get()); } catch (e) { err && err(e); } if (!stop) t = setTimeout(tick, 20000); }; t = setTimeout(tick, 0); return () => { stop = true; clearTimeout(t); }; }
+  };
+}};
 const Store = {
   kind: 'pending', db: null, uid: null,
   async init() {
+    if (/^https?:$/.test(location.protocol) && !/claude\.ai|claudeusercontent|anthropic|github\.io/.test(location.host)) {
+      try {
+        const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 3000);
+        const r = await fetch('/api/health', {signal: ctl.signal, cache: 'no-store'}); clearTimeout(tm);
+        if (r.ok && (await r.json()).ok) { this.kind = 'server'; this.db = famShim; return; }
+      } catch (e) { /* not our server */ }
+    }
     try {
       const [db, user] = await Promise.all([window.claude?.use?.('db') ?? null, window.claude?.use?.('user') ?? null]);
       const uid = user ? await user.id() : null;
@@ -572,41 +602,49 @@ const Store = {
   lset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
   ldel(k) { try { localStorage.removeItem(k); } catch {} },
   async getAcct(id) {
+    if (this.kind === 'server') { try { const r = await api('GET', '/api/session'); return r.id === id ? r.acct : null; } catch { return null; } }
     if (this.kind === 'cloud') { const s = await this.ref(id).get(); return s.exists ? s.data() : null; }
     return this.lget(this.lk(id, 'acct'));
   },
   async setAcct(id, obj) {
+    if (this.kind === 'server') return api('PUT', '/api/acct', {acct: obj});
     if (this.kind === 'cloud') return this.ref(id).set(obj);
     if (!this.lset(this.lk(id, 'acct'), obj)) throw new Error('local');
   },
   async listMonths(id) {
+    if (this.kind === 'server') return api('GET', '/api/months');
     if (this.kind === 'cloud') { const q = await this.ref(id).collection('months').get(); return q.docs.map(d => ({ym: d.id, box: d.data()})); }
     const idx = this.lget(this.lk(id, 'months')) || [];
     return idx.map(ym => ({ym, box: this.lget(this.lk(id, 'm', ym))})).filter(x => x.box);
   },
   async setMonth(id, ym, box) {
+    if (this.kind === 'server') return api('PUT', '/api/months/' + ym, {box});
     if (this.kind === 'cloud') return this.ref(id).collection('months').doc(ym).set(box);
     const idx = new Set(this.lget(this.lk(id, 'months')) || []); idx.add(ym);
     if (!this.lset(this.lk(id, 'm', ym), box) || !this.lset(this.lk(id, 'months'), [...idx])) throw new Error('local');
   },
   async delMonth(id, ym) {
+    if (this.kind === 'server') return api('DELETE', '/api/months/' + ym);
     if (this.kind === 'cloud') return this.ref(id).collection('months').doc(ym).delete();
     const idx = new Set(this.lget(this.lk(id, 'months')) || []); idx.delete(ym); this.lset(this.lk(id, 'months'), [...idx]); this.ldel(this.lk(id, 'm', ym));
   },
   async log(id, e, extra = {}) {
     const row = {e, at: new Date().toISOString(), ...extra};
     try {
-      if (this.kind === 'cloud') await this.ref(id).collection('logs').add(row);
+      if (this.kind === 'server') { if (SRV.tok()) await api('POST', '/api/logs', {row}); }
+      else if (this.kind === 'cloud') await this.ref(id).collection('logs').add(row);
       else { const L = this.lget(this.lk(id, 'logs')) || []; L.push(row); this.lset(this.lk(id, 'logs'), L.slice(-200)); }
     } catch {}
   },
   async logs(id) {
     try {
+      if (this.kind === 'server') return await api('GET', '/api/logs');
       if (this.kind === 'cloud') { const q = await this.ref(id).collection('logs').orderBy('at', 'desc').limit(30).get(); return q.docs.map(d => d.data()); }
       return (this.lget(this.lk(id, 'logs')) || []).slice().reverse().slice(0, 30);
     } catch { return []; }
   },
   async wipe(id) {
+    if (this.kind === 'server') { await api('DELETE', '/api/acct'); SRV.set(null); return; }
     if (this.kind === 'cloud') {
       const r = this.ref(id);
       for (const c of ['months', 'logs']) { const q = await r.collection(c).get(); for (const d of q.docs) await r.collection(c).doc(d.id).delete(); }
@@ -1039,16 +1077,17 @@ function markSettings() { S.settingsDirty = true; clearTimeout(saveTimer); saveT
 async function flush() {
   if (!S.key) return;
   const yms = [...S.dirty]; S.dirty.clear();
+  const key = S.key, id = S.acctId, txs = S.txs.slice(), settings = S.settings, acct0 = S.acct, sDirty = S.settingsDirty; S.settingsDirty = false;
   try {
-    for (const ym of yms) {
-      const rows = S.txs.filter(t => ymOf(t.d) === ym);
-      if (!rows.length) await Store.delMonth(S.acctId, ym);
-      else await Store.setMonth(S.acctId, ym, {v: 1, ...(await encJSON(S.key, rows))});
-    }
-    if (fam() && yms.length) { try { await publishFam(yms); } catch {} }
-    if (S.settingsDirty) { S.settingsDirty = false; S.acct = {...S.acct, settings: await encJSON(S.key, S.settings)}; await Store.setAcct(S.acctId, S.acct); }
+    const boxes = [];
+    for (const ym of yms) { const rows = txs.filter(t => ymOf(t.d) === ym); boxes.push([ym, rows.length ? {v: 1, ...(await encJSON(key, rows))} : null]); }
+    const setBox = sDirty ? await encJSON(key, settings) : null;
+    for (const [ym, box] of boxes) { if (!box) await Store.delMonth(id, ym); else await Store.setMonth(id, ym, box); }
+    if (S.key === key && fam() && yms.length) { try { await publishFam(yms); } catch {} }
+    if (setBox) { const acct = {...acct0, settings: setBox}; if (S.key === key) S.acct = acct; await Store.setAcct(id, acct); }
   } catch (e) {
-    yms.forEach(y => S.dirty.add(y));
+    if (S.key !== key) return;
+    yms.forEach(y => S.dirty.add(y)); if (sDirty) S.settingsDirty = true;
     toast(e && e.code === 'quota_exceeded' ? 'Хранилище заполнено. Удалите старые месяцы.' : 'Не удалось сохранить. Проверьте связь, повторим через минуту.');
     clearTimeout(saveTimer); saveTimer = setTimeout(flush, 60000);
   }
@@ -1073,20 +1112,28 @@ function addTxs(rows) {
 async function acctIdFor(login) { return 'a' + (await sha256hex('aksha|' + login.trim().toLowerCase())).slice(0, 28); }
 async function signup(login, pw) {
   const id = await acctIdFor(login);
-  if (await Store.getAcct(id)) throw new Error('Такой логин уже есть. Войдите или выберите другой.');
+  if (Store.kind !== 'server' && await Store.getAcct(id)) throw new Error('Такой логин уже есть. Войдите или выберите другой.');
   const raw = rand(32); const rec = makeRecoveryKey();
   const acct = {v: 1, created: new Date().toISOString(), kdf: {alg: 'PBKDF2-SHA256', iter: KDF_ITER}, wp: await wrapVault(raw, pw), wr: await wrapVault(raw, rec.replace(/-/g, ''))};
   const key = await importVault(raw);
   S.settings = {budgets: {}, rules: {}, lockMin: 0, notified: {}, cards: [], loans: []};
   acct.settings = await encJSON(key, S.settings);
-  await Store.setAcct(id, acct);
+  if (Store.kind === 'server') {
+    let r; try { r = await api('POST', '/api/signup', {id, auth: await authSecret(pw, id, 'auth'), rec: await authSecret(rec.replace(/-/g, ''), id, 'rec'), acct}); }
+    catch (e) { throw new Error(e.status === 409 ? 'Такой логин уже есть. Войдите или выберите другой.' : e.status === 429 ? 'Слишком много попыток. Попробуйте позже.' : 'Сервер недоступен. Попробуйте ещё раз.'); }
+    SRV.set(r.token);
+  } else await Store.setAcct(id, acct);
   Object.assign(S, {acctId: id, login: login.trim(), key, acct, txs: [], recKey: rec});
   await Store.log(id, 'signup');
   await afterUnlock();
 }
 async function login(loginName, pw) {
   const id = await acctIdFor(loginName);
-  const acct = await Store.getAcct(id);
+  let acct;
+  if (Store.kind === 'server') {
+    try { const r = await api('POST', '/api/login', {id, auth: await authSecret(pw, id, 'auth')}); SRV.set(r.token); acct = r.acct; }
+    catch (e) { throw new Error(e.status === 401 ? 'Неверный логин или пароль.' : e.status === 429 ? 'Слишком много попыток. Подождите 15 минут.' : 'Сервер недоступен. Попробуйте ещё раз.'); }
+  } else acct = await Store.getAcct(id);
   if (!acct) throw new Error('Неверный логин или пароль.');
   let raw;
   try { raw = await unwrapVault(acct.wp, pw); } catch { await Store.log(id, 'login_failed'); throw new Error('Неверный логин или пароль.'); }
@@ -1094,10 +1141,15 @@ async function login(loginName, pw) {
   await loadVault(); await Store.log(id, 'login'); startFam(); await afterUnlock();
 }
 async function recover(loginName, rec, newPw) {
-  const id = await acctIdFor(loginName); const acct = await Store.getAcct(id);
+  const id = await acctIdFor(loginName); let acct;
+  if (Store.kind === 'server') {
+    try { const r = await api('POST', '/api/login-rec', {id, rec: await authSecret(normRec(rec).replace(/-/g, ''), id, 'rec')}); SRV.set(r.token); acct = r.acct; }
+    catch (e) { throw new Error(e.status === 401 ? 'Неверный логин или ключ восстановления.' : e.status === 429 ? 'Слишком много попыток. Подождите 15 минут.' : 'Сервер недоступен. Попробуйте ещё раз.'); }
+  } else acct = await Store.getAcct(id);
   if (!acct) throw new Error('Неверный логин или ключ восстановления.');
   let raw; try { raw = await unwrapVault(acct.wr, normRec(rec).replace(/-/g, '')); } catch { await Store.log(id, 'recovery_failed'); throw new Error('Неверный логин или ключ восстановления.'); }
   acct.wp = await wrapVault(raw, newPw); await Store.setAcct(id, acct);
+  if (Store.kind === 'server') await api('PUT', '/api/auth', {auth: await authSecret(newPw, id, 'auth')});
   Object.assign(S, {acctId: id, login: loginName.trim(), key: await importVault(raw), acct});
   await loadVault(); await Store.log(id, 'password_reset'); startFam(); await afterUnlock();
 }
@@ -1133,7 +1185,8 @@ async function resumeSession() {
 
 function lock(reason) {
   if (!S.key) return;
-  flush();
+  const saved = flush();
+  if (Store.kind === 'server') Promise.resolve(saved).finally(() => api('POST', '/api/logout').catch(() => {}).finally(() => SRV.set(null)));
   stopFam(); S.scope = 'me';
   forgetSession();
   const id = S.acctId; Store.log(id, reason === 'idle' ? 'auto_lock' : 'logout');
@@ -1786,7 +1839,7 @@ function parseInvite(code) { try { const o = JSON.parse(atob(unb64u(code.replace
 let famUnsub = null;
 async function famKeyObj() { if (!S.famKey && fam()) S.famKey = await importVault(unb64(fam().key)); return S.famKey; }
 async function publishFam(yms) {
-  const f = fam(); if (!f || Store.kind !== 'cloud') return;
+  const f = fam(); if (!f || !['cloud', 'server'].includes(Store.kind)) return;
   const key = await famKeyObj(); const shared = famCards(); const col = Store.db.collection(`families/${f.id}/m`);
   for (const ym of yms) {
     const rows = S.txs.filter(t => ymOf(t.d) === ym && shared.has(t.card)).map(t => ({id: t.id, d: t.d, tm: t.tm || '', a: t.a, m: t.m, c: t.c, card: t.card, bank: bankOfCard(t.card).k, ex: t.ex || undefined}));
@@ -1795,7 +1848,7 @@ async function publishFam(yms) {
   }
 }
 async function startFam() {
-  stopFam(); const f = fam(); if (!f || Store.kind !== 'cloud') return;
+  stopFam(); const f = fam(); if (!f || !['cloud', 'server'].includes(Store.kind)) return;
   const key = await famKeyObj();
   famUnsub = Store.db.collection(`families/${f.id}/m`).onSnapshot(async snap => {
     const others = [], members = new Map([[f.member, f.name]]);
@@ -1815,7 +1868,7 @@ function famRows() {
 }
 function sheetFamily() {
   const f = fam();
-  if (Store.kind !== 'cloud') return openSheet(`<div class="stack"><div class="spread"><h2>Семейный бюджет</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div><p class="muted">Семейный бюджет работает только с облачным хранилищем. Откройте приложение в Claude.</p></div>`);
+  if (!['cloud', 'server'].includes(Store.kind)) return openSheet(`<div class="stack"><div class="spread"><h2>Семейный бюджет</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div><p class="muted">Семейный бюджет работает только с облачным хранилищем. Откройте приложение в Claude.</p></div>`);
   if (!f) {
     let mode = 'create';
     const draw = () => openSheet(`<form id="fFam" class="stack"><div class="spread"><h2>Семейный бюджет</h2><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
@@ -1847,7 +1900,7 @@ function sheetFamily() {
   openSheet(`<div class="stack"><div class="spread"><h2>Семейный бюджет</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
     <div class="card stack"><div class="lbl">Участники</div><div class="row wrap2">${members.map(m => `<span class="chip" style="font-size:14px;padding:6px 12px">${esc(m)}</span>`).join('')}</div></div>
     <div class="card stack"><div class="lbl">Пригласить</div>
-      <p class="small">Отправьте этот код близкому человеку. С ним он откроет общий бюджет, поэтому не публикуйте код. Чтобы приглашённый мог открыть само приложение, поделитесь им через меню «Поделиться» с правом вносить изменения.</p>
+      <p class="small">Отправьте этот код близкому человеку. С ним он откроет общий бюджет, поэтому не публикуйте код. ${Store.kind === 'server' ? `Приглашённый открывает ${esc(location.origin)}, создаёт свой аккаунт и вводит код.` : 'Чтобы приглашённый мог открыть само приложение, поделитесь им через меню «Поделиться» с правом вносить изменения.'}</p>
       <div class="reckey" id="famCode" style="font-size:14px"></div><button class="btn block" id="famCopy">Скопировать код</button></div>
     <div class="card stack"><div class="lbl">Мои общие карты</div><div class="cardpick" style="flex-wrap:wrap">${cardsList().map(c => `<button type="button" data-fcard="${esc(c.name)}" aria-pressed="${famCards().has(c.name)}">${bankBadge(bankByKey(c.bank), 20)}${esc(c.name)}</button>`).join('')}</div>
       <p class="small muted">Операции с этих карт видят все участники семьи.</p></div>
@@ -1878,6 +1931,10 @@ async function ensureInboxKeys() {
   }
   const pub = {kty: 'RSA', n: jwk.n, e: jwk.e, alg: 'RSA-OAEP-256', ext: true};
   LS.set(INBOX_PUB, JSON.stringify({acct: S.acctId, login: S.login, k: pub}));
+  if (Store.kind === 'server') {
+    if (!S.settings.payToken) { S.settings.payToken = b64u(b64(rand(24))); markSettings(); }
+    try { await api('PUT', '/api/pay/setup', {token: S.settings.payToken, pub}); } catch {}
+  }
 }
 async function sealForInbox(obj) {
   const meta = JSON.parse(LS.get(INBOX_PUB) || 'null'); if (!meta) return false;
@@ -1887,7 +1944,10 @@ async function sealForInbox(obj) {
   const list = JSON.parse(LS.get(INBOX) || '[]'); list.push({acct: meta.acct, wk, ...box}); return LS.set(INBOX, JSON.stringify(list.slice(-500)));
 }
 async function drainInbox() {
-  const list = JSON.parse(LS.get(INBOX) || '[]'); const mine = list.filter(x => x.acct === S.acctId); if (!mine.length || !S.settings.inboxPriv) return 0;
+  const list = JSON.parse(LS.get(INBOX) || '[]'); const mine = list.filter(x => x.acct === S.acctId);
+  let srvIds = [];
+  if (Store.kind === 'server') { try { const items = await api('GET', '/api/inbox'); srvIds = items.map(x => x.id); mine.push(...items); } catch {} }
+  if (!mine.length || !S.settings.inboxPriv) return 0;
   const priv = await crypto.subtle.importKey('jwk', S.settings.inboxPriv, RSA, false, ['decrypt']);
   const rows = []; let lastBal = null;
   for (const x of mine) {
@@ -1903,6 +1963,7 @@ async function drainInbox() {
   }
   LS.set(INBOX, JSON.stringify(list.filter(x => x.acct !== S.acctId)));
   const n = rows.length ? addTxs(rows) : 0;
+  if (srvIds.length) { await flush(); try { await api('POST', '/api/inbox/ack', {ids: srvIds}); } catch {} }
   if (lastBal) { const c = cardsList().find(c => c.name === lastBal.card); if (c) { c.bal = {value: lastBal.value, at: lastBal.at}; markSettings(); } }
   if (n) Store.log(S.acctId, 'import', {n});
   return n;
@@ -1926,7 +1987,28 @@ async function ingestHash() {
   else { S.pendingPay = text; S.payNote = {first: true, a: t.a, m: t.m}; }
 }
 const appLink = () => location.protocol.startsWith('http') && !/claude\.ai|claudeusercontent|anthropic/.test(location.host) ? location.origin + location.pathname : 'https://daulet-tuzelbek.github.io/aksha-tracker/';
+function sheetApplePayServer() {
+  const link = `${location.origin}/api/pay/${S.settings.payToken || ''}?t=`;
+  openSheet(`<div class="stack"><div class="spread"><h2>Apple Pay автоматически</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
+    <p class="small muted">Покупка уходит на ваш сервер в фоне, ничего не открывается. Сервер сразу шифрует её вашим ключом, а в ленту она попадает при следующем входе.</p>
+    <div class="card stack"><div class="lbl">Ваша личная ссылка</div><div class="reckey" id="apLink" style="font-size:12px;text-align:left;word-break:break-all"></div><button class="btn" id="apCopy">Скопировать ссылку</button>
+      <p class="small muted">По ссылке можно только добавить покупку, прочитать по ней ничего нельзя. Всё равно не публикуйте её.</p></div>
+    <div class="card stack"><h3>Команда в «Командах»</h3>
+      <ol class="steps">
+        <li>Автоматизация Wallet: «When Any Card is tapped», запуск без подтверждения.</li>
+        <li><b>Text</b>: Покупка, переменные <b>Amount</b> и <b>Merchant</b>, затем <b>|</b> и <b>Card or Pass</b>.</li>
+        <li><b>URL Encode</b> этого текста.</li>
+        <li>Второй <b>Text</b>: ссылка выше, сразу за <b>?t=</b> переменная <b>URL Encoded Text</b>.</li>
+        <li><b>Get Contents of URL</b> вместо «Open», вход — второй Text.</li>
+      </ol>
+      <p class="small muted">Если команда уже настроена на открытие страницы, замените в ней второй Text и «Open» на «Get Contents of URL».</p></div>
+  </div>`, sh => {
+    $('#apLink', sh).textContent = link;
+    $('#apCopy', sh).onclick = () => navigator.clipboard?.writeText(link).then(() => toast('Скопировано'), () => { const r = document.createRange(); r.selectNodeContents($('#apLink', sh)); getSelection().removeAllRanges(); getSelection().addRange(r); toast('Выделено, скопируйте вручную'); });
+  });
+}
 function sheetApplePay() {
+  if (Store.kind === 'server') return sheetApplePayServer();
   const link = appLink();
   openSheet(`<div class="stack"><div class="spread"><h2>Apple Pay автоматически</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
     <p class="small muted">Работает через приложение «Команды» на iPhone и только для оплат Apple Pay. Переводы и оплаты внутри банковских приложений добавляйте выпиской.</p>
@@ -2032,7 +2114,7 @@ function viewProfile() {
   return {title: 'Профиль', html: `
   <div class="stack lg">
     <section class="card stack">
-      <div class="spread"><div><div class="lbl">Аккаунт</div><h2>${esc(S.login)}</h2></div><span class="chip">${Store.kind === 'cloud' ? 'Облако · шифр' : 'Этот браузер · шифр'}</span></div>
+      <div class="spread"><div><div class="lbl">Аккаунт</div><h2>${esc(S.login)}</h2></div><span class="chip">${Store.kind === 'cloud' ? 'Облако · шифр' : Store.kind === 'server' ? 'Сервер · шифр' : 'Этот браузер · шифр'}</span></div>
       <p class="small muted">${S.txs.length} ${plural(S.txs.length, 'операция', 'операции', 'операций')} за ${months} ${plural(months, 'месяц', 'месяца', 'месяцев')}</p>
     </section>
     <section class="card spread"><h3>Язык</h3>${langSwitch()}</section>
@@ -2328,6 +2410,7 @@ applyLangArrays(); startTranslator();
 ingestHash().then(() => { if (S.view === 'auth') render(); });
 addEventListener('hashchange', () => ingestHash().then(() => { if (S.view === 'auth') render(); }));
 render();
+if (location.hostname === 'localhost' && /[?&]__test\b/.test(location.search)) window.__t = {S, Store, api, acctIdFor};
 Store.init().then(async () => { const ok = await resumeSession().catch(() => false); if (!ok && S.view === 'auth') render(); initAI(); });
 })();
 </script>
