@@ -745,7 +745,7 @@ const OUT_WORDS = /покупк|оплат|списани|снятие|пере�
 // Parse a bank push / SMS / Shortcuts line into a transaction draft.
 function parsePush(text, rules) {
   let t = text.replace(/\s+/g, ' ').trim(); let cardExplicit = '';
-  const pipe = t.lastIndexOf(' | '); if (pipe > 0) { cardExplicit = t.slice(pipe + 3).trim(); t = t.slice(0, pipe).trim(); }
+  const pipe = t.lastIndexOf('|'); if (pipe > 0) { cardExplicit = t.slice(pipe + 1).trim(); t = t.slice(0, pipe).trim(); }
   let m = t.match(AMT_RE);
   if (!m) { const m2 = t.match(/(₸|kzt)\s?([+\-−–]?\d[\d\s\u00a0\u202f.,]*\d|\d)/i); if (m2) m = Object.assign([m2[0], m2[2], m2[1]], {index: m2.index}); }
   if (!m) return null;
