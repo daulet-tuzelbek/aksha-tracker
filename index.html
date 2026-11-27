@@ -443,7 +443,7 @@ const KK = {
   'Если забудете пароль, войти можно только с этим ключом. Мы его не храним и восстановить не сможем.': 'Құпиясөзді ұмытсаңыз, тек осы кілтпен кіре аласыз. Біз оны сақтамаймыз және қалпына келтіре алмаймыз.',
   'Скопировать': 'Көшіру', 'Я сохранил ключ в надёжном месте': 'Кілтті сенімді жерге сақтадым', 'Продолжить': 'Жалғастыру',
   'Какие у вас карты?': 'Қандай карталарыңыз бар?', 'Отметьте банки, которыми пользуетесь. Карты появятся в кошельке, операции будут с их значками.': 'Қолданатын банктеріңізді белгілеңіз. Карталар әмиянда пайда болады, операциялар олардың белгісімен көрсетіледі.',
-  'Наличные': 'Қолма-қол ақша', 'Готово': 'Дайын', 'Пропустить': 'Өткізіп жіберу', 'Значки — наши условные обозначения, не логотипы банков.': 'Белгілер — біздің шартты белгілер, банк логотиптері емес.',
+  'Наличные': 'Қолма-қол ақша', 'Сколько наличных сейчас, ₸': 'Қазір қолма-қол қанша, ₸', 'Сейчас наличными': 'Қазір қолма-қол', 'Дальше сумма считается сама по расходам, которые вы отмечаете наличными.': 'Әрі қарай сома қолма-қол деп белгіленген шығындар бойынша өзі есептеледі.', 'Готово': 'Дайын', 'Пропустить': 'Өткізіп жіберу', 'Значки — наши условные обозначения, не логотипы банков.': 'Белгілер — біздің шартты белгілер, банк логотиптері емес.',
   'Все счета': 'Барлық шоттар', 'Текущий баланс': 'Ағымдағы баланс', 'Указать баланс': 'Балансты енгізу', 'Доходы': 'Кірістер', 'Расходы': 'Шығыстар', 'Этот месяц': 'Осы ай', 'Сегодня': 'Бүгін', 'Вчера': 'Кеше', 'Период': 'Кезең',
   'Добавьте первые операции': 'Алғашқы операцияларды қосыңыз', 'Загрузите выписку из банка, вставьте текст пуша о покупке или внесите трату вручную.': 'Банктен үзінді көшірме жүктеңіз, сатып алу туралы хабарламаны қойыңыз немесе шығынды қолмен енгізіңіз.',
   'Добавить операции': 'Операция қосу', 'Посмотреть на примере данных': 'Мысал деректерімен көру', 'Пример помечается значком «пример», его можно удалить в профиле.': 'Мысал «мысал» белгісімен көрсетіледі, оны профильде өшіруге болады.',
@@ -1496,17 +1496,17 @@ function sheetCards() {
   const draw = () => {
     const cards = cardsList();
     openSheet(`<div class="stack"><div class="spread"><h2>Мои карты</h2><button class="btn ghost" data-act="closeSheet">Закрыть</button></div>
-      ${cards.length ? `<div class="stack" style="gap:8px">${cards.map(c => { const b = bankByKey(c.bank); return `<div class="row card" style="padding:10px 12px">${bankBadge(b, 32)}<div class="minw" style="flex:1"><b>${esc(c.name)}</b><div class="small muted">${esc(b.n)}${c.last4 ? ' · •• ' + esc(c.last4) : ''}</div></div><button class="btn ghost danger" style="min-height:36px;padding:0 10px" data-delcard="${esc(c.id)}">Убрать</button></div>`; }).join('')}</div>` : '<p class="muted">Карт пока нет.</p>'}
+      ${cards.length ? `<div class="stack" style="gap:8px">${cards.map(c => { const b = bankByKey(c.bank); return `<div class="row card" style="padding:10px 12px">${bankBadge(b, 32)}<div class="minw" style="flex:1"><b>${esc(c.name)}</b><div class="small muted">${esc(b.n)}${c.last4 && c.bank !== 'cash' ? ' · •• ' + esc(c.last4) : ''}</div></div><button class="btn ghost danger" style="min-height:36px;padding:0 10px" data-delcard="${esc(c.id)}">Убрать</button></div>`; }).join('')}</div>` : '<p class="muted">Карт пока нет.</p>'}
       <h3 style="margin-top:6px">Добавить карту</h3>
       <div class="bankgrid">${BANKS.map(b => `<button data-pickbank="${b.k}">${bankBadge(b, 34)}<span>${esc(b.n)}</span></button>`).join('')}</div>
       <form id="fCard" class="stack" hidden>
         <div class="field"><label for="cdName">Название</label><input id="cdName" type="text" required></div>
-        <div class="field"><label for="cdLast">Последние 4 цифры, необязательно</label><input id="cdLast" type="text" inputmode="numeric" maxlength="4" pattern="\\d{4}"></div>
+        <div class="field" id="cdLastF"><label for="cdLast">Последние 4 цифры, необязательно</label><input id="cdLast" type="text" inputmode="numeric" maxlength="4" pattern="\\d{4}"></div>
         <button class="btn primary block">Добавить</button>
       </form>
       <p class="small muted">Номер карты целиком не нужен и не хранится. Значки — наши условные обозначения, не логотипы банков.</p></div>`, sh => {
       let bank = null;
-      sh.querySelectorAll('[data-pickbank]').forEach(b => b.onclick = () => { bank = b.dataset.pickbank; sh.querySelectorAll('[data-pickbank]').forEach(x => x.setAttribute('aria-pressed', x === b)); const f = $('#fCard', sh); f.hidden = false; $('#cdName', sh).value = bankByKey(bank).def; $('#cdName', sh).focus(); });
+      sh.querySelectorAll('[data-pickbank]').forEach(b => b.onclick = () => { bank = b.dataset.pickbank; sh.querySelectorAll('[data-pickbank]').forEach(x => x.setAttribute('aria-pressed', x === b)); const f = $('#fCard', sh); f.hidden = false; $('#cdLastF', sh).hidden = bank === 'cash'; if (bank === 'cash') $('#cdLast', sh).value = ''; $('#cdName', sh).value = bankByKey(bank).def; $('#cdName', sh).focus(); });
       $('#fCard', sh).onsubmit = e => { e.preventDefault(); const name = $('#cdName', sh).value.trim(); if (!name || !bank) return; if (cardsList().some(c => c.name === name)) return toast('Карта с таким названием уже есть'); (S.settings.cards ||= []).push({id: uid8(), bank, name, last4: $('#cdLast', sh).value.replace(/\D/g, '').slice(0, 4)}); markSettings(); render(); draw(); toast('Карта добавлена'); };
       sh.querySelectorAll('[data-delcard]').forEach(b => b.onclick = () => { if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Точно?'; return; } S.settings.cards = cardsList().filter(c => c.id !== b.dataset.delcard); markSettings(); render(); draw(); });
     });
@@ -1606,9 +1606,9 @@ function slideHTML(x) {
   const f = finishOf(c); const eyeC = `<button class="peye" data-act="toggleBal" aria-label="${hidden ? 'Показать баланс' : 'Скрыть баланс'}">${svgIcon(hidden ? 'eyeoff' : 'eye', 18, f.ink)}</button>`;
   return `<div class="slide"><section class="pcard real" style="background:${f.bg};color:${f.ink}">
     <div class="ptop"><div class="pname"><span>${esc(c.name)}</span></div><button class="pgear" data-act="editCard" data-cname="${esc(c.name)}" aria-label="Настройки карты" style="color:${f.ink}">${svgIcon('gear', 18, f.ink)}</button></div>
-    <div class="row" style="gap:10px">${CHIP}${NFC(f.ink)}</div>
-    <div><div class="plbl">Текущий баланс</div>${bal === null ? `<button class="pset" data-act="editCard" data-cname="${esc(c.name)}" style="color:${f.ink}">Указать баланс</button>` : `<div class="pbal num">${hidden ? '••••••' : money(Math.round(bal))}${eyeC}</div>`}</div>
-    <div class="pfoot"><span class="pnum">${c.last4 ? '••••  ' + esc(c.last4) : '••••  ••••'}</span><span style="font-weight:600">${esc(b.n)}</span></div></section></div>`;
+    ${c.bank === 'cash' ? '<div style="height:28px"></div>' : `<div class="row" style="gap:10px">${CHIP}${NFC(f.ink)}</div>`}
+    <div><div class="plbl">${c.bank === 'cash' ? 'Сейчас наличными' : 'Текущий баланс'}</div>${bal === null ? `<button class="pset" data-act="editCard" data-cname="${esc(c.name)}" style="color:${f.ink}">Указать баланс</button>` : `<div class="pbal num">${hidden ? '••••••' : money(Math.round(bal))}${eyeC}</div>`}</div>
+    <div class="pfoot"><span class="pnum">${c.bank === 'cash' ? '' : c.last4 ? '••••  ' + esc(c.last4) : '••••  ••••'}</span><span style="font-weight:600">${esc(b.n)}</span></div></section></div>`;
 }
 function stackHTML(rows) {
   const sl = slidesList(); const idx = currentSlideIdx(sl);
@@ -1743,21 +1743,21 @@ function sheetRange() {
 }
 function sheetEditCard() {
   const c = cardsList().find(x => x.name === S.filterCard); if (!c) return sheetCards();
-  const b = bankByKey(c.bank); const bal = cardBalance(c);
+  const b = bankByKey(c.bank); const bal = cardBalance(c); const cash = c.bank === 'cash';
   openSheet(`<form id="fEc" class="stack"><div class="spread"><div class="row" style="gap:10px">${bankBadge(b, 32)}<h2>${esc(c.name)}</h2></div><button type="button" class="btn ghost" data-act="closeSheet">Закрыть</button></div>
-    <div class="field"><label for="ecBal">Текущий баланс, ₸</label><input id="ecBal" type="text" inputmode="decimal" placeholder="Например, 177 162" value="${bal === null ? '' : Math.round(bal)}"></div>
-    <p class="small muted">Дальше баланс считается сам по операциям этой карты. Если в пуше есть «Доступно …», он обновится из пуша.</p>
+    <div class="field"><label for="ecBal">${cash ? 'Сколько наличных сейчас, ₸' : 'Текущий баланс, ₸'}</label><input id="ecBal" type="text" inputmode="decimal" placeholder="Например, 177 162" value="${bal === null ? '' : Math.round(bal)}"></div>
+    <p class="small muted">${cash ? 'Дальше сумма считается сама по расходам, которые вы отмечаете наличными.' : 'Дальше баланс считается сам по операциям этой карты. Если в пуше есть «Доступно …», он обновится из пуша.'}</p>
     <div class="field"><label>Цвет карты</label><div class="swatches">${Object.entries(FINISHES).map(([k, f]) => `<button type="button" data-fin="${k}" aria-pressed="${finishOf(c) === f}" aria-label="${f.n}" title="${f.n}" style="background:${f.bg}"></button>`).join('')}</div></div>
     <div class="field"><label for="ecName">Название</label><input id="ecName" type="text" value="${esc(c.name)}" required></div>
-    <div class="field"><label for="ecLast">Последние 4 цифры</label><input id="ecLast" type="text" inputmode="numeric" maxlength="4" value="${esc(c.last4 || '')}"></div>
-    <div class="field"><label for="ecWallet">Как карта называется в Apple Wallet</label><input id="ecWallet" type="text" placeholder="Например, Kaspi Gold или своё название" value="${esc(c.wallet || '')}"><span class="small muted">По этому названию оплаты Apple Pay попадают на эту карту. Несколько названий можно через запятую.</span></div>
+    ${cash ? '' : `<div class="field"><label for="ecLast">Последние 4 цифры</label><input id="ecLast" type="text" inputmode="numeric" maxlength="4" value="${esc(c.last4 || '')}"></div>
+    <div class="field"><label for="ecWallet">Как карта называется в Apple Wallet</label><input id="ecWallet" type="text" placeholder="Например, Kaspi Gold или своё название" value="${esc(c.wallet || '')}"><span class="small muted">По этому названию оплаты Apple Pay попадают на эту карту. Несколько названий можно через запятую.</span></div>`}
     <button class="btn primary block">Сохранить</button>
     <button type="button" class="btn block" data-act="cards">Все карты</button></form>`, sh => {
     let fin = c.finish || ''; sh.querySelectorAll('[data-fin]').forEach(b => b.onclick = () => { fin = b.dataset.fin; sh.querySelectorAll('[data-fin]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
     $('#fEc', sh).onsubmit = e => {
       e.preventDefault(); const nn = $('#ecName', sh).value.trim(); if (!nn) return; if (fin) c.finish = fin;
       if (nn !== c.name) { if (cardsList().some(x => x.name === nn)) return toast('Такое название уже есть'); const yms = new Set(); S.txs.forEach(t => { if (t.card === c.name) { t.card = nn; yms.add(ymOf(t.d)); } }); markDirty(...yms); c.name = nn; S.filterCard = nn; }
-      c.last4 = $('#ecLast', sh).value.replace(/\D/g, '').slice(0, 4); c.wallet = $('#ecWallet', sh).value.trim().slice(0, 120);
+      if (!cash) { c.last4 = $('#ecLast', sh).value.replace(/\D/g, '').slice(0, 4); c.wallet = $('#ecWallet', sh).value.trim().slice(0, 120); }
       const v = $('#ecBal', sh).value.trim();
       if (v) { const now = new Date(); c.bal = {value: toNum(v), at: `${todayISO()}T${pad(now.getHours())}:${pad(now.getMinutes())}`}; } else delete c.bal;
       markSettings(); closeSheet(); render(); toast('Сохранено');
